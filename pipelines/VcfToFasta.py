@@ -1,6 +1,6 @@
 ## get_fasta
 
-import os
+import os, sys, json, shutil
 
 import luigi
 from luigi.contrib.slurm import SlurmExecutableTask
@@ -8,7 +8,7 @@ from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
-from fieldpathogenomics import GetRefSNPSs
+from SNP_calling import GetRefSNPSs, picard
 
 class GetVCF(luigi.ExternalTask):
     '''Input VCF file, containing both SNPs and non-variant sites'''
@@ -45,7 +45,7 @@ class ConvertToBCF(SlurmExecutableTask):
 @requires(ConvertToBCF)
 class GetSingleSample(SlurmExecutableTask):
     '''Pull a single sample out of the joint BCF file and use picard to compute a BED file where there is missing data'''
-    lib = luigi.Parameter()
+    library = luigi.Parameter()
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -55,25 +55,27 @@ class GetSingleSample(SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return[LocalTarget(os.path.join(self.scratch_dir, 'single_sample', self.lib + ".vcf.gz"),
-               LocalTarget(os.path.join(self.scratch_dir, 'single_sample', self.lib + ".bed")]
+        return[LocalTarget(os.path.join(self.scratch_dir, 'single_sample', self.library + ".vcf.gz")),
+               LocalTarget(os.path.join(self.scratch_dir, 'single_sample', self.library + ".bed"))]
 
     def work_script(self):
         
         return '''#!/bin/bash -e
                 source bcftools-1.3.1;
                 source vcftools-0.1.13;
-                picard='{picard}'
+               source jre-8u92
+               source picardtools-2.1.1
+               picard='{picard}'
                 
-                bcftools view {input} -o {vcf} -O z -s {lib} --exclude-uncalled --no-update 
+                bcftools view {input} -o {vcf} -O z -s {library} --exclude-uncalled --no-update 
                 tabix -p vcf {vcf}
-                bgzip -dc {vcf} | $picard IntervalListTools I=/dev/stdin INVERT=true O=/dev/stdout | $picard IntervalListToBed I=/dev/stdin O={mask}
+                $picard IntervalListTools I={vcf} INVERT=true O=/dev/stdout | $picard IntervalListToBed I=/dev/stdin O={mask}
                 
                 '''.format(picard=picard.format(mem=self.mem),
                             input=self.input().path,
                             vcf=self.output()[0].path,
-                            mask=self.output()[1],
-                            lib=self.lib)
+                            mask=self.output()[1].path,
+                            library=self.library)
 
 
 @requires(GetSingleSample)        
@@ -82,7 +84,7 @@ class BCFtoolsConsensus(SlurmExecutableTask):
        :param str consensus_type: can be H1 or H2 for applying one of the (pseudo) haplotypes or iupac-codes for ambiguous coding'''
 
     consensus_type = luigi.Parameter() # {'H1' , 'H2', 'iupac-codes'}
-    reference = luigi.Parameter(default=/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta)
+    reference = luigi.Parameter()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -92,27 +94,27 @@ class BCFtoolsConsensus(SlurmExecutableTask):
         self.partition = "tgac-short"
     
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'fasta', 'genomes', self.lib+self.consensus_type+'.fasta' )
+        return LocalTarget(os.path.join(self.base_dir, 'fasta', 'genomes', self.library+self.consensus_type+'.fasta'))
         
     def work_script(self):
         return '''#!/bin/bash -e
                 source bcftools-1.3.1;
-                source vcftools-0.1.13;
+                source samtools-0.1.19;
                 
-                bcftools consensus {vcf} -f {reference} -s {lib} -m {mask} {consensus_type} > {output}
+                bcftools consensus {vcf} -f {reference} -s {library} -m {mask} {consensus_type} > {output}
                 samtools faidx {output}
                 
-                '''.format(vcf=self.output()[0].path,
-                           mask=self.output()[1].path,
+                '''.format(vcf=self.input()[0].path,
+                           mask=self.input()[1].path,
                            reference=self.reference,
-                           lib=self.lib, 
+                           library=self.library, 
                            output=self.output().path, 
                            consensus_type=self.consensus_type)
 
 @requires(BCFtoolsConsensus)
 class GFFread(SlurmExecutableTask):
     '''Pull out the spliced exons from the genomes'''
-    gff = luig.Parameter()
+    gff = luigi.Parameter()
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -122,47 +124,44 @@ class GFFread(SlurmExecutableTask):
         self.partition = "tgac-short"
         
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'fasta', 'genes', self.lib+self.consensus_type+'.fasta' )
+        return LocalTarget(os.path.join(self.base_dir, 'fasta', 'genes', self.library+self.consensus_type+'.fasta'))
         
     def work_script(self):
         return '''#!/bin/bash -e
-                source bcftools-1.3.1;
-                source vcftools-0.1.13;
+                source gffread-0.9.8;
                 
                 gffread {gff} -g {input} -w /dev/stdout | fold -w 60 > {output} 
                 
                 '''.format(gff=self.gff,
                            input=self.input().path,
-                           outputself.output().path)
-                           
-class CleanUp(SlurmExecutableTask):
-    clean_dir = luigi.Parameter()
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Set the SLURM request params for this task
-        self.mem = 500
-        self.n_cpu = 1
-        self.partition = "tgac-short"
-        
-    def work_script(self):
-        return '''#!/bin/bash -e
-                rm -rf {clean_dir}'''.format(clean_dir=self.clean_dir)
-                
-    def complete(self):
-        return not os.path.exists(self.clean_dir)
+                           output=self.output().path)
 
 
-@inherits(GetVCF)
+@inherits(GFFread)
 class GetConsensusesWrapper(luigi.WrapperTask):
     lib_list = luigi.ListParameter()        
     def requires(self):
-        for lib in self.lib_list:
+        for library in self.lib_list:
             for consensus_type in ['H1', 'H2', 'iupac-codes']:
-                yield GFFread(lib=lib, consensus_type=consensus_type)
-    
-        yield CleanUp(clean_dir=os.path.join(self.scratch_dir, 'single_sample'))
+                yield self.clone_parent(library=library, consensus_type=consensus_type)
 
+    def on_success(self):
+        '''If the task successfully completes clean up the temporary files'''
+        shutil.rmtree(os.path.join(self.scratch_dir, 'single_sample'))
+        return super().on_success()
+# Same hack as in LibraryBatchWrapper, allows us to propagate all arguments of GFFread upwards apart from library
+GetConsensusesWrapper.library = None
+GetConsensusesWrapper.consensus_type = None
                            
-                           
-                           
-                           
+if __name__ == '__main__':
+    os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
+    
+    with open(sys.argv[1], 'r') as librarys_file:
+        lib_list = [line.rstrip() for line in librarys_file]
+        
+    luigi.run(['GetConsensusesWrapper', '--lib-list', json.dumps(lib_list),
+                                        '--gff', '/usr/users/ga004/buntingd/FP_dev/testing/data/PST_genes_final.gff3',
+                                        '--ref-snp-vcf', '/usr/users/ga004/buntingd/FP_dev/testing/callsets/genotypes/genotypes_RefSNPs.vcf.gz',
+                                        '--reference', '/usr/users/ga004/buntingd/FP_dev/testing/data/PST130_contigs.fasta',
+                                        '--workers', '3',])
+    

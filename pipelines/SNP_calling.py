@@ -31,7 +31,7 @@ class FetchFastqGZ(SlurmExecutableTask):
     library = luigi.Parameter()
     base_dir = luigi.Parameter(default="/usr/users/ga004/buntingd/FP_dev/testing/", significant=False)
     scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
-    read_dir = luigi.Parameter(default="/usr/users/ga004/buntingd/FP_dev/testing", significant=False)
+    read_dir = luigi.Parameter(default="/tgac/data/reads/*DianeSaunders*", significant=False)
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

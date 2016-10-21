@@ -38,7 +38,7 @@ class FetchFastqGZ(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 500
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
     def output(self):
         LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")).makedirs()
@@ -49,11 +49,11 @@ class FetchFastqGZ(SlurmExecutableTask):
         return '''#!/bin/bash -e 
         
                   find {read_dir} -name "*{library}*_R1.fastq.gz" -type f | while read fname; do
-                      cat $fname >> {R1}
+                      cat < $fname >> {R1}
                   done
                   
                   find {read_dir} -name "*{library}*_R2.fastq.gz" -type f | while read fname; do
-                      cat $fname >> {R2}
+                      cat < $fname >> {R2}
                   done
                   
                   sleep 30
@@ -71,7 +71,7 @@ class PythonFilter(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 500
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
     def output(self):
         return [LocalTarget(os.path.join(self.scratch_dir, self.library, "pyfilter_R1.fastq.gz")),
@@ -80,7 +80,7 @@ class PythonFilter(SlurmExecutableTask):
     def work_script(self):
         return '''#!/bin/bash -e 
                 {python}
-                python fastq_filter.py {R1_in} {R2_in} {R1_out} {R2_out} -L 88
+                python fastq_filter.py {R1_in} {R2_in} {R1_out} {R2_out} -L 101
                  '''.format(python=python,
                             R1_in=self.input()[0].path,
                             R2_in=self.input()[1].path,
@@ -95,7 +95,7 @@ class FastxQC(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
       
     def output(self):
         working_dir = os.path.join(self.base_dir, self.library)
@@ -137,7 +137,7 @@ class FastxTrimmer(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
         
     def output(self):
@@ -196,7 +196,7 @@ class CleanSam(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, self.library, 'Aligned.out_cleaned.bam'))
@@ -219,7 +219,7 @@ class AddReadGroups(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
     def output(self):
         working_dir = os.path.join(self.base_dir, self.library)
@@ -244,7 +244,7 @@ class MarkDuplicates(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, self.library, 'dedupped.bam'))
@@ -274,7 +274,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
             
     def output(self):
@@ -314,7 +314,7 @@ class SplitNCigarReads(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, self.library, 'split.bam'))
@@ -338,7 +338,7 @@ class HaplotypeCaller(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 6000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, self.library, self.library + ".g.vcf"))
@@ -362,7 +362,7 @@ class PlotAlleleFreq(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, self.library, 'QC', self.library + "_allele_freqs.pdf"))
@@ -425,7 +425,7 @@ class GenotypeGVCF(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 32000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
     
     def input(self):
         ## THIS IS A MASSIVE FAT HACK
@@ -457,7 +457,7 @@ class VcfToolsFilter(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 2
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_filtered.vcf.gz"))
@@ -491,7 +491,7 @@ class GetSNPs(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
     
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_SNPs_only.vcf.gz"))
@@ -515,7 +515,7 @@ class GetINDELs(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
     
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_INDELs_only.vcf.gz"))
@@ -539,7 +539,7 @@ class GetRefSNPSs(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
     
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_RefSNPs.vcf.gz"))

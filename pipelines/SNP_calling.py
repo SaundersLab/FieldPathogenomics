@@ -47,16 +47,10 @@ class FetchFastqGZ(SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash -e 
-        
-                  find {read_dir} -name "*{library}*_R1.fastq.gz" -type f | while read fname; do
-                      cat < $fname >> {R1}
-                  done
-                  
-                  find {read_dir} -name "*{library}*_R2.fastq.gz" -type f | while read fname; do
-                      cat < $fname >> {R2}
-                  done
-                  
-                  sleep 30
+                 echo "Starting first reads"
+                  find {read_dir} -name "*{library}*_R1.fastq.gz" -type f  -exec cat {{}}   \; > {R1}
+                  echo "Starting second reads"
+                  find {read_dir} -name "*{library}*_R2.fastq.gz" -type f  -exec cat {{}}   \; > {R2}
                  '''.format(read_dir = self.read_dir,
                             library=self.library,
                             R1=self.output()[0].path,

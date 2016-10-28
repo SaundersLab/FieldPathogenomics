@@ -74,7 +74,7 @@ class PythonFilter(SlurmExecutableTask):
     def work_script(self):
         return '''#!/bin/bash -e 
                 {python}
-                python fastq_filter.py {R1_in} {R2_in} {R1_out} {R2_out} -L 101
+                python scripts/fastq_filter.py {R1_in} {R2_in} {R1_out} {R2_out} -L 101
                  '''.format(python=python,
                             R1_in=self.input()[0].path,
                             R2_in=self.input()[1].path,
@@ -373,7 +373,7 @@ class PlotAlleleFreq(SlurmExecutableTask):
                 $gatk -T VariantsToTable -R {reference} -AMD -V {input} -F CHROM -F POS -F REF -F ALT -F DP -GF AD  --out {temp1}
                 grep -ve "NA" <  {temp1}  > {temp2}
 
-                python plotAF.py {temp2} {output}
+                python scripts/plotAF.py {temp2} {output}
                 
                 '''.format(python=python,
                             gatk=gatk.format(mem=self.mem),

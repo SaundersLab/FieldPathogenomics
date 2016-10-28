@@ -269,21 +269,33 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
         self.mem = 8000
         self.n_cpu = 1
         self.partition = "tgac-medium"
-        
-            
+    
     def output(self):
         if self.snp_db == '':
             return LocalTarget(os.path.join(self.base_dir, self.library, 'dedupped.bam'))
         else:
             return LocalTarget(os.path.join(self.base_dir, self.library, 'recalibrated.bam'))
+    
+    def on_success(self):
+        if self.snp_db == '':
+            luigi.Task.on_success(self)
+        else:
+            SlurmExecutableTask.on_success(self)
+
+    def on_failure(self,e):
+        if self.snp_db == '':
+            luigi.Task.on_failure(self, e)
+        else:
+            SlurmExecutableTask.on_failure(self,e)
             
     def run(self):
         if self.snp_db == '':
             logger.info("Not running BQSR as no snp_db given")
+            
         else:
             logger.info("Running BQSR recalibration using bootstrapped snp_db " +  self.snp_db)
-            super(type(self), self).run()
-            
+            super().run()
+    
     def work_script(self):
         recal = os.path.join(self.base_dir, self.library, self.library+"_recal.tsv")
         return '''#!/bin/bash -e

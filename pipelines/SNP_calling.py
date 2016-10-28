@@ -1,6 +1,7 @@
 import os,sys, json
 import multiprocessing
 from time import sleep
+import time
 import logging
 logger = logging.getLogger('luigi-interface')
 
@@ -575,6 +576,14 @@ class SnpCalling(luigi.WrapperTask):
 
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
+    logging.disable(logging.DEBUG)
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    
+    fh = logging.FileHandler(os.path.basename(__file__) + "_" + timestr)
+    fh.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
     
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]

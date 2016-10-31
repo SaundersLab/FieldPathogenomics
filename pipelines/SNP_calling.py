@@ -25,6 +25,9 @@ Guidelines for harmonious living:
 
 #-----------------------------------------------------------------------#
 
+## TODO: Add a final task that calls sacct and makes a nice report of resource usage
+
+
 class FetchFastqGZ(SlurmExecutableTask):
     '''Fetches and concatenate the fastq.gz files for ``library`` from the /reads/ server
      :param str library: library name  '''
@@ -37,9 +40,9 @@ class FetchFastqGZ(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 500
+        self.mem = 1000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "tgac-short"
         
     def output(self):
         LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")).makedirs()
@@ -64,7 +67,7 @@ class PythonFilter(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 500
+        self.mem = 1000
         self.n_cpu = 1
         self.partition = "tgac-medium"
         
@@ -88,7 +91,7 @@ class FastxQC(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 1000
+        self.mem = 2000
         self.n_cpu = 1
         self.partition = "tgac-medium"
       
@@ -133,8 +136,7 @@ class FastxTrimmer(SlurmExecutableTask):
         self.mem = 1000
         self.n_cpu = 1
         self.partition = "tgac-medium"
-        
-        
+    
     def output(self):
         working_dir = os.path.join(self.base_dir, self.library)
         return [LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R1.fastq.gz")),
@@ -152,7 +154,7 @@ class FastxTrimmer(SlurmExecutableTask):
                    R1_out=self.output()[0].path,
                    R2_out=self.output()[1].path)
 
-@requires(PythonFilter)
+@requires(FastxTrimmer)
 class Star(SlurmExecutableTask):
     '''Runs STAR to align to the reference :param str star_genome:'''
     star_genome = luigi.Parameter()
@@ -189,9 +191,9 @@ class CleanSam(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 1000
+        self.mem = 1500
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "tgac-short"
         
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, self.library, 'Aligned.out_cleaned.bam'))
@@ -212,9 +214,9 @@ class AddReadGroups(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 1000
+        self.mem = 1500
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "tgac-short"
         
     def output(self):
         working_dir = os.path.join(self.base_dir, self.library)
@@ -237,9 +239,9 @@ class MarkDuplicates(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 4000
+        self.mem = 6000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "tgac-short"
         
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, self.library, 'dedupped.bam'))
@@ -319,9 +321,9 @@ class SplitNCigarReads(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 1000
+        self.mem = 6000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "tgac-short"
         
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, self.library, 'split.bam'))
@@ -579,7 +581,7 @@ if __name__ == '__main__':
     logging.disable(logging.DEBUG)
     timestr = time.strftime("%Y%m%d-%H%M%S")
     
-    fh = logging.FileHandler(os.path.basename(__file__) + "_" + timestr)
+    fh = logging.FileHandler(os.path.basename(__file__) + "_" + timestr + ".log")
     fh.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)

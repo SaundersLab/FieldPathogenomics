@@ -1,6 +1,7 @@
 ## get_fasta
 
 import os, sys, json, shutil
+import logging 
 
 import luigi
 from luigi.contrib.slurm import SlurmExecutableTask
@@ -94,14 +95,16 @@ class BCFtoolsConsensus(SlurmExecutableTask):
         self.partition = "tgac-short"
     
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'fasta', 'genomes', self.library+self.consensus_type+'.fasta'))
+        return LocalTarget(os.path.join(self.base_dir, 'fasta', 'genomes', self.library+"_"+self.consensus_type+'.fasta'))
         
     def work_script(self):
+        ct_flag = "--"+self.consensus_type if self.consensus_type == 'iupac-codes' else "-"+self.consensus_type
         return '''#!/bin/bash -e
-                source bcftools-1.3.1;
-                source samtools-0.1.19;
-                
+        
+                source bcftools-1.3.1;                
                 bcftools consensus {vcf} -f {reference} -s {library} -m {mask} {consensus_type} > {output}
+                
+                source samtools-1.3;
                 samtools faidx {output}
                 
                 '''.format(vcf=self.input()[0].path,
@@ -109,7 +112,7 @@ class BCFtoolsConsensus(SlurmExecutableTask):
                            reference=self.reference,
                            library=self.library, 
                            output=self.output().path, 
-                           consensus_type=self.consensus_type)
+                           consensus_type=ct_flag)
 
 @requires(BCFtoolsConsensus)
 class GFFread(SlurmExecutableTask):
@@ -155,10 +158,10 @@ GetConsensusesWrapper.consensus_type = None
                            
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
-    
+    logging.disable(logging.DEBUG)
     with open(sys.argv[1], 'r') as librarys_file:
         lib_list = [line.rstrip() for line in librarys_file]
-        
+    
     luigi.run(['GetConsensusesWrapper', '--lib-list', json.dumps(lib_list),
                                         '--gff', '/usr/users/ga004/buntingd/FP_dev/testing/data/PST_genes_final.gff3',
                                         '--ref-snp-vcf', '/usr/users/ga004/buntingd/FP_dev/testing/callsets/genotypes/genotypes_RefSNPs.vcf.gz',

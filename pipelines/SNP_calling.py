@@ -96,7 +96,7 @@ class FastxQC(SlurmExecutableTask):
         self.partition = "tgac-medium"
       
     def output(self):
-        working_dir = os.path.join(self.base_dir, self.library)
+        working_dir = os.path.join(self.base_dir, 'libraries', self.library)
         return {'stats_R1': LocalTarget(os.path.join(working_dir, 'QC', self.library + "_R1_stats.txt")),
                 'stats_R2': LocalTarget(os.path.join(working_dir, 'QC', self.library + "_R2_stats.txt")),
                 'boxplot_R1': LocalTarget(os.path.join(working_dir, 'QC', self.library + "_R1_quality.png")),
@@ -138,7 +138,6 @@ class FastxTrimmer(SlurmExecutableTask):
         self.partition = "tgac-medium"
     
     def output(self):
-        working_dir = os.path.join(self.base_dir, self.library)
         return [LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R1.fastq.gz")),
                 LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R2.fastq.gz"))]
     
@@ -169,7 +168,7 @@ class Star(SlurmExecutableTask):
     def output(self):        
         return {
             'star_sam' : LocalTarget(os.path.join(self.scratch_dir, self.library, 'Aligned.out.sam')),
-            'star_log' : LocalTarget(os.path.join(self.base_dir, self.library, 'Log.final.out'))
+            'star_log' : LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'Log.final.out'))
         }
     
     def work_script(self):
@@ -178,7 +177,7 @@ class Star(SlurmExecutableTask):
                   cd {scratch_dir}
                   STAR  --genomeDir {star_genome} -runThreadN {n_cpu} --readFilesCommand gunzip -c --readFilesIn {R1} {R2}
                   cp {scratch_dir}/Log.final.out {working_dir}/Log.final.out
-                  '''.format(working_dir=os.path.join(self.base_dir, self.library),
+                  '''.format(working_dir=os.path.join(self.base_dir, 'libraries',  self.library),
                              scratch_dir=os.path.join(self.scratch_dir, self.library),
                              star_genome=self.star_genome, 
                              n_cpu=self.n_cpu,
@@ -219,7 +218,6 @@ class AddReadGroups(SlurmExecutableTask):
         self.partition = "tgac-short"
         
     def output(self):
-        working_dir = os.path.join(self.base_dir, self.library)
         return LocalTarget(os.path.join(self.scratch_dir, self.library, 'rg_added_sorted.bam'))
     
     def work_script(self):
@@ -244,7 +242,7 @@ class MarkDuplicates(SlurmExecutableTask):
         self.partition = "tgac-short"
         
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, self.library, 'dedupped.bam'))
+        return LocalTarget(os.path.join(self.base_dir, 'libraries',self.library, 'dedupped.bam'))
     
     def work_script(self):
         return '''#!/bin/bash -e
@@ -275,9 +273,9 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
     
     def output(self):
         if self.snp_db == '':
-            return LocalTarget(os.path.join(self.base_dir, self.library, 'dedupped.bam'))
+            return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'dedupped.bam'))
         else:
-            return LocalTarget(os.path.join(self.base_dir, self.library, 'recalibrated.bam'))
+            return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'recalibrated.bam'))
     
     def on_success(self):
         if self.snp_db == '':
@@ -300,7 +298,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
             super().run()
     
     def work_script(self):
-        recal = os.path.join(self.base_dir, self.library, self.library+"_recal.tsv")
+        recal = os.path.join(self.base_dir, 'libraries', self.library, self.library+"_recal.tsv")
         return '''#!/bin/bash -e
                   source jre-8u92
                   source gatk-3.6.0
@@ -350,7 +348,7 @@ class HaplotypeCaller(SlurmExecutableTask):
         self.partition = "tgac-medium"
         
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, self.library, self.library + ".g.vcf"))
+        return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, self.library + ".g.vcf"))
         
     def work_script(self):
         return '''#!/bin/bash -e
@@ -374,7 +372,7 @@ class PlotAlleleFreq(SlurmExecutableTask):
         self.partition = "tgac-medium"
         
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, self.library, 'QC', self.library + "_allele_freqs.pdf"))
+        return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'QC', self.library + "_allele_freqs.pdf"))
         
     def work_script(self):
         self.temp1=TemporaryFile()

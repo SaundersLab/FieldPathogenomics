@@ -56,8 +56,6 @@ class FastqFilter():
                         out_count += 1
                         Bio.SeqIO.write(r1, r1_out_fh, 'fastq')
                         Bio.SeqIO.write(r2, r2_out_fh, 'fastq')
-                    if out_count > 10000:
-                        break
                          
         print("In : {0} Failed: ".format(in_count) + "\t".join([str(f) for f in self.filters]))
 

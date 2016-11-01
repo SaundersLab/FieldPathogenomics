@@ -38,7 +38,7 @@ class FetchFastqGZ(SlurmExecutableTask):
      :param str library: library name  '''
     
     library = luigi.Parameter()
-    base_dir = luigi.Parameter(default="/usr/users/ga004/buntingd/FP_dev/testing/", significant=False)
+    base_dir = luigi.Parameter(significant=False)
     scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
     read_dir = luigi.Parameter(default="/tgac/data/reads/*DianeSaunders*", significant=False)
     
@@ -596,8 +596,6 @@ if __name__ == '__main__':
         lib_list = [line.rstrip() for line in libs_file]
         
     luigi.run(['SnpCalling', '--lib-list', json.dumps(lib_list),
-                               '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
-                               '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
-                               '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed',
-                               '--workers', '3',])
-                               
+                             '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
+                             '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
+                             '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'])

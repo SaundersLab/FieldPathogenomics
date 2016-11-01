@@ -18,7 +18,7 @@ python="source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 # Ugly hack
 scripts_dir = os.path.join(os.path.split(os.path.split(__file__)[0])[0], 'scripts')
-log_dir = os.path.join(os.path.split(os.path.split(os.path.split(f)[0])[0])[0], 'logs')
+log_dir = os.path.join(os.path.split(os.path.split(os.path.split(__file__)[0])[0])[0], 'logs')
 os.makedirs(log_dir)
 
 '''

@@ -19,7 +19,7 @@ python="source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 # Ugly hack
 scripts_dir = os.path.join(os.path.split(os.path.split(__file__)[0])[0], 'scripts')
 log_dir = os.path.join(os.path.split(os.path.split(os.path.split(__file__)[0])[0])[0], 'logs')
-os.makedirs(log_dir)
+os.makedirs(log_dir, exist_ok=True)
 
 '''
 Guidelines for harmonious living:
@@ -594,8 +594,9 @@ if __name__ == '__main__':
     
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]
-        
+    
+    
     luigi.run(['SnpCalling', '--lib-list', json.dumps(lib_list),
                              '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
                              '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
-                             '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'])
+                             '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[2:])

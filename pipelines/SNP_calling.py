@@ -16,6 +16,11 @@ picard="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools
 gatk="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
 python="source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
+# Ugly hack
+scripts_dir = os.path.join(os.path.split(os.path.split(__file__)[0])[0], 'scripts')
+log_dir = os.path.join(os.path.split(os.path.split(os.path.split(f)[0])[0])[0], 'logs')
+os.makedirs(log_dir)
+
 '''
 Guidelines for harmonious living:
 --------------------------------
@@ -78,8 +83,9 @@ class PythonFilter(SlurmExecutableTask):
     def work_script(self):
         return '''#!/bin/bash -e 
                 {python}
-                python scripts/fastq_filter.py {R1_in} {R2_in} {R1_out} {R2_out} -L 101
+                python {script_dir}/fastq_filter.py {R1_in} {R2_in} {R1_out} {R2_out} -L 101
                  '''.format(python=python,
+                            script_dir=script_dir,
                             R1_in=self.input()[0].path,
                             R2_in=self.input()[1].path,
                             R1_out=self.output()[0].path,
@@ -386,9 +392,10 @@ class PlotAlleleFreq(SlurmExecutableTask):
                 $gatk -T VariantsToTable -R {reference} -AMD -V {input} -F CHROM -F POS -F REF -F ALT -F DP -GF AD  --out {temp1}
                 grep -ve "NA" <  {temp1}  > {temp2}
 
-                python scripts/plotAF.py {temp2} {output}
+                python {script_dir}/plotAF.py {temp2} {output}
                 
                 '''.format(python=python,
+                            script_dir=script_dir,
                             gatk=gatk.format(mem=self.mem),
                             reference=self.reference,
                             input=self.input().path,
@@ -579,7 +586,7 @@ if __name__ == '__main__':
     logging.disable(logging.DEBUG)
     timestr = time.strftime("%Y%m%d-%H%M%S")
     
-    fh = logging.FileHandler(os.path.basename(__file__) + "_" + timestr + ".log")
+    fh = logging.FileHandler(os.path.join(log_dir, os.path.basename(__file__) + "_" + timestr + ".log"))
     fh.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)

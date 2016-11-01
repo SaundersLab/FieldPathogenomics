@@ -17,7 +17,7 @@ gatk="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x8
 python="source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 # Ugly hack
-scripts_dir = os.path.join(os.path.split(os.path.split(__file__)[0])[0], 'scripts')
+script_dir = os.path.join(os.path.split(os.path.split(__file__)[0])[0], 'scripts')
 log_dir = os.path.join(os.path.split(os.path.split(os.path.split(__file__)[0])[0])[0], 'logs')
 os.makedirs(log_dir, exist_ok=True)
 
@@ -47,7 +47,7 @@ class FetchFastqGZ(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "tgac-medium"
         
     def output(self):
         LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")).makedirs()

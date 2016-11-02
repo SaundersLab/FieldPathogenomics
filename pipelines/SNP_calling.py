@@ -31,6 +31,12 @@ Guidelines for harmonious living:
 #-----------------------------------------------------------------------#
 
 ## TODO: Add a final task that calls sacct and makes a nice report of resource usage
+## TODO: MD5sums??
+## TODO: Improve stability of server
+## TODO: Fix performance of PythonFilter
+## TODO: Fix performace of FetchFastqGZ
+## TODO: Figure out srun
+
 
 
 class FetchFastqGZ(SlurmExecutableTask):
@@ -72,7 +78,7 @@ class PythonFilter(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 1000
+        self.mem = 8000
         self.n_cpu = 1
         self.partition = "tgac-medium"
         

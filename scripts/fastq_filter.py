@@ -76,9 +76,6 @@ class FastqFilter():
                     out_count += 1
                     r1_out_text.writelines([r1_header, r1_seq, r1_desc, r1_qual])
                     r2_out_text.writelines([r1_header, r1_seq, r1_desc, r1_qual])
-                
-                if in_count > 1000:
-                    break
                     
                 if in_count % 100000 == 0 :
                     print("Done {0}".format(in_count))

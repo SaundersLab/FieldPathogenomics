@@ -47,7 +47,6 @@ class FastqFilter():
         
         self.apply()
 
-    @profile
     def apply(self):
         
         ## Use mid sized caches 134mb to reduce network load

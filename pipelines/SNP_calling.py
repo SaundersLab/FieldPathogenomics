@@ -62,10 +62,10 @@ class FetchFastqGZ(SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash -e 
-                 echo "Starting first reads"
-                  find {read_dir} -name "*{library}*_R1.fastq.gz" -type f  -exec cat {{}}   \; > {R1}
-                  echo "Starting second reads"
-                  find {read_dir} -name "*{library}*_R2.fastq.gz" -type f  -exec cat {{}}   \; > {R2}
+                  find {read_dir} -name "*{library}*_R1.fastq.gz" -type f  -exec cat {{}}   \; > {R1}_temp
+                  find {read_dir} -name "*{library}*_R2.fastq.gz" -type f  -exec cat {{}}   \; > {R2}_temp
+                  mv {R1}_temp {R1}
+                  mv {R2}_temp {R2}
                  '''.format(read_dir = self.read_dir,
                             library=self.library,
                             R1=self.output()[0].path,
@@ -158,8 +158,9 @@ class FastxTrimmer(SlurmExecutableTask):
         source fastx_toolkit-0.0.13.2
         
         gzip -cd {R1_in} | fastx_trimmer -f14 -z -o {R1_out} -Q33
-        gzip -cd {R2_in} | fastx_trimmer -f14 -z -o {R2_out} -Q33         
+        gzip -cd {R2_in} | fastx_trimmer -f14 -z -o {R2_out} -Q33
 
+        echo "DONE"
         '''.format(R1_in=self.input()[0].path,
                    R2_in=self.input()[1].path,
                    R1_out=self.output()[0].path,

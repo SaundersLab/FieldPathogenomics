@@ -64,8 +64,7 @@ class FastqFilter():
             for r1_header, r2_header in zipped:
                  
                 if r1_header[0] != '@' or r2_header[0] != '@':
-                    print("Not at the start of a record!!")
-                    continue
+                    raise Exception("Not at the start of a record!!")
                 
                 r1_seq, r2_seq = next(zipped)
                 r1_desc, r2_desc = next(zipped)
@@ -77,10 +76,12 @@ class FastqFilter():
                     r1_out_text.writelines([r1_header, r1_seq, r1_desc, r1_qual])
                     r2_out_text.writelines([r2_header, r2_seq, r2_desc, r2_qual])
                 
-                #if in_count > 1000:
+                #if in_count > 100000:
                 #    break
-                    
+            
             with open(self.out_r1, 'wb') as r1_out_fh, open(self.out_r2, 'wb',) as r2_out_fh:
+                r1_out_text.flush()
+                r2_out_text.flush()
                 r1_out_gz.close()
                 r2_out_gz.close()
                 r1_out_fh.write(r1_buf.getvalue())

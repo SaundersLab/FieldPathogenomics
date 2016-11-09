@@ -80,9 +80,6 @@ class FastqFilter():
                 #if in_count > 1000:
                 #    break
                     
-                if in_count % 100000 == 0 :
-                    print("Done {0}".format(in_count))
-                    
             with open(self.out_r1, 'wb') as r1_out_fh, open(self.out_r2, 'wb',) as r2_out_fh:
                 r1_out_gz.close()
                 r2_out_gz.close()

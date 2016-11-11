@@ -62,10 +62,11 @@ class FetchFastqGZ(SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash -e 
-                  find {read_dir} -name "*{library}*_R1.fastq.gz" -type f  -exec cat {{}}   \; > {R1}_temp
-                  find {read_dir} -name "*{library}*_R2.fastq.gz" -type f  -exec cat {{}}   \; > {R2}_temp
-                  mv {R1}_temp {R1}
-                  mv {R2}_temp {R2}
+                  find {read_dir} -name "*{library}*_R1.fastq.gz" -type f  -exec cat {{}}   \; > {R1}.temp
+                  find {read_dir} -name "*{library}*_R2.fastq.gz" -type f  -exec cat {{}}   \; > {R2}.temp
+                  
+                  mv {R1}.temp {R1}
+                  mv {R2}.temp {R2}
                  '''.format(read_dir = self.read_dir,
                             library=self.library,
                             R1=self.output()[0].path,
@@ -89,7 +90,10 @@ class PythonFilter(SlurmExecutableTask):
     def work_script(self):
         return '''#!/bin/bash -e 
                 {python}
-                python {script_dir}/fastq_filter.py {R1_in} {R2_in} {R1_out} {R2_out} -L 101
+                python {script_dir}/fastq_filter.py {R1_in} {R2_in} {R1_out}.temp {R2_out}.temp -L 101
+                
+                mv {R1_out}.temp {R1_out}
+                mv {R2_out}.temp {R2_out}
                  '''.format(python=python,
                             script_dir=script_dir,
                             R1_in=self.input()[0].path,
@@ -188,10 +192,16 @@ class Star(SlurmExecutableTask):
     def work_script(self):
         return '''#!/bin/bash -e
                   source star-2.5.0a
-                  cd {scratch_dir}
+                  mkdir -p {scratch_dir}/star_temp
+                  cd  {scratch_dir}/star_temp
+                  
                   STAR  --genomeDir {star_genome} -runThreadN {n_cpu} --readFilesCommand gunzip -c --readFilesIn {R1} {R2}
-                  cp {scratch_dir}/Log.final.out {working_dir}/Log.final.out
-                  '''.format(working_dir=os.path.join(self.base_dir, 'libraries',  self.library),
+                  
+                  mv {scratch_dir}/star_temp/Log.final.out {star_log}
+                  mv {scratch_dir}/star_temp/Aligned.out.sam {star_sam}
+                  
+                  '''.format(star_sam=self.output['star_sam'].path,
+                             star_log=self.output['star_log'].path,
                              scratch_dir=os.path.join(self.scratch_dir, self.library),
                              star_genome=self.star_genome, 
                              n_cpu=self.n_cpu,
@@ -216,7 +226,8 @@ class CleanSam(SlurmExecutableTask):
                source jre-8u92
                source picardtools-2.1.1
                picard='{picard}'
-               $picard CleanSam VERBOSITY=ERROR QUIET=true I={input} O={output}
+               $picard CleanSam VERBOSITY=ERROR QUIET=true I={input} O={output}.temp
+               mv {output}.temp {output}
                 '''.format(input=self.input()['star_sam'].path, 
                            output=self.output().path,
                            picard=picard.format(mem=self.mem))
@@ -239,7 +250,8 @@ class AddReadGroups(SlurmExecutableTask):
                source jre-8u92
                source picardtools-2.1.1
                picard='{picard}' 
-               $picard AddOrReplaceReadGroups VERBOSITY=ERROR QUIET=true I={input} O={output} SO=coordinate RGID=Star RGLB={lib} RGPL=Ilumina RGPU=Ilumina RGSM={lib} 
+               $picard AddOrReplaceReadGroups VERBOSITY=ERROR QUIET=true I={input} O={output}.temp SO=coordinate RGID=Star RGLB={lib} RGPL=Ilumina RGPU=Ilumina RGSM={lib}
+               mv {output}.temp {output} 
                 '''.format(input=self.input().path, 
                            output=self.output().path,
                            lib=self.library,
@@ -263,7 +275,8 @@ class MarkDuplicates(SlurmExecutableTask):
                source jre-8u92
                source picardtools-2.1.1
                picard='{picard}'
-               $picard MarkDuplicates VERBOSITY=ERROR QUIET=true I={input} O={output} CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT M=/dev/null
+               $picard MarkDuplicates VERBOSITY=ERROR QUIET=true I={input} O={output}.temp CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT M=/dev/null
+               mv {output}.temp {output}
                 '''.format(input=self.input().path, 
                            output=self.output().path,
                            picard=picard.format(mem=self.mem))
@@ -318,7 +331,9 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
                   source gatk-3.6.0
                   gatk='{gatk}'
                   $gatk -T BaseRecalibrator  -R {reference}  -I {input}  -knownSites {snp_db}  -o {recal}
-                  $gatk -T PrintReads -R {reference} -I {input} -BQSR {recal} -o {output}
+                  $gatk -T PrintReads -R {reference} -I {input} -BQSR {recal} -o {output}.temp
+                  
+                  mv {output}.temp {output}
                 '''.format(gatk=gatk.format(mem=self.mem),
                            input=self.input().path,
                            output=self.output().path,
@@ -345,7 +360,8 @@ class SplitNCigarReads(SlurmExecutableTask):
                source jre-8u92
                source gatk-3.6.0
                gatk='{gatk}'
-               $gatk -T SplitNCigarReads --logging_level ERROR -R {reference} -I {input} -o {output} -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+               $gatk -T SplitNCigarReads --logging_level ERROR -R {reference} -I {input} -o {output}.temp -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+               mv {output}.temp {output}
                 '''.format(input=self.input().path, 
                            output=self.output().path,
                            gatk=gatk.format(mem=self.mem),
@@ -369,7 +385,8 @@ class HaplotypeCaller(SlurmExecutableTask):
                 source jre-8u92
                 source gatk-3.6.0
                 gatk='{gatk}'
-                $gatk -T HaplotypeCaller --logging_level ERROR -R {reference} -I {input} -dontUseSoftClippedBases --emitRefConfidence GVCF -o {output}
+                $gatk -T HaplotypeCaller --logging_level ERROR -R {reference} -I {input} -dontUseSoftClippedBases --emitRefConfidence GVCF -o {output}.temp
+                mv {output}.temp {output}
         '''.format(input=self.input().path, 
                    output=self.output().path,
                    gatk=gatk.format(mem=self.mem),
@@ -400,8 +417,9 @@ class PlotAlleleFreq(SlurmExecutableTask):
                 $gatk -T VariantsToTable -R {reference} -AMD -V {input} -F CHROM -F POS -F REF -F ALT -F DP -GF AD  --out {temp1}
                 grep -ve "NA" <  {temp1}  > {temp2}
 
-                python {script_dir}/plotAF.py {temp2} {output}
+                python {script_dir}/plotAF.py {temp2} {output}.temp
                 
+                mv {output}.temp {output}
                 '''.format(python=python,
                             script_dir=script_dir,
                             gatk=gatk.format(mem=self.mem),
@@ -461,7 +479,10 @@ class GenotypeGVCF(SlurmExecutableTask):
                 source jre-8u92
                 source gatk-3.6.0
                 gatk='{gatk}'
-                $gatk -T GenotypeGVCFs --logging_level ERROR -R {reference} -o {output} --includeNonVariantSites '''.format(output=self.output().path,
+                $gatk -T GenotypeGVCFs --logging_level ERROR -R {reference} -o {output}.temp --includeNonVariantSites 
+                
+                mv {output}.temp {output}
+                '''.format(output=self.output().path,
                            gatk=gatk.format(mem=self.mem),
                            reference=self.reference)+
                 "\n".join(["--variant "+ lib.path +" \\" for lib in self.input()]))

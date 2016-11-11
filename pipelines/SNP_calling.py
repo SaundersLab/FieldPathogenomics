@@ -227,7 +227,10 @@ class CleanSam(SlurmExecutableTask):
                source picardtools-2.1.1
                picard='{picard}'
                $picard CleanSam VERBOSITY=ERROR QUIET=true I={input} O={output}.temp
+               
                mv {output}.temp {output}
+               mv {output}.temp.bai {output}.bai
+               
                 '''.format(input=self.input()['star_sam'].path, 
                            output=self.output().path,
                            picard=picard.format(mem=self.mem))
@@ -251,7 +254,10 @@ class AddReadGroups(SlurmExecutableTask):
                source picardtools-2.1.1
                picard='{picard}' 
                $picard AddOrReplaceReadGroups VERBOSITY=ERROR QUIET=true I={input} O={output}.temp SO=coordinate RGID=Star RGLB={lib} RGPL=Ilumina RGPU=Ilumina RGSM={lib}
-               mv {output}.temp {output} 
+               
+               mv {output}.temp {output}
+               mv {output}.temp.bai {output}.bai
+                
                 '''.format(input=self.input().path, 
                            output=self.output().path,
                            lib=self.library,
@@ -276,7 +282,9 @@ class MarkDuplicates(SlurmExecutableTask):
                source picardtools-2.1.1
                picard='{picard}'
                $picard MarkDuplicates VERBOSITY=ERROR QUIET=true I={input} O={output}.temp CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT M=/dev/null
+               
                mv {output}.temp {output}
+               mv {output}.temp.bai {output}.bai
                 '''.format(input=self.input().path, 
                            output=self.output().path,
                            picard=picard.format(mem=self.mem))
@@ -334,6 +342,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
                   $gatk -T PrintReads -R {reference} -I {input} -BQSR {recal} -o {output}.temp
                   
                   mv {output}.temp {output}
+                  mv {output}.temp.bai {output}.bai
                 '''.format(gatk=gatk.format(mem=self.mem),
                            input=self.input().path,
                            output=self.output().path,
@@ -361,6 +370,8 @@ class SplitNCigarReads(SlurmExecutableTask):
                source gatk-3.6.0
                gatk='{gatk}'
                $gatk -T SplitNCigarReads --logging_level ERROR -R {reference} -I {input} -o {output}.temp -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+               
+               mv {output}.temp.bai {output}.bai
                mv {output}.temp {output}
                 '''.format(input=self.input().path, 
                            output=self.output().path,

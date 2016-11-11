@@ -238,7 +238,7 @@ class AddReadGroups(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 1500
+        self.mem = 3000
         self.n_cpu = 1
         self.partition = "tgac-short"
         

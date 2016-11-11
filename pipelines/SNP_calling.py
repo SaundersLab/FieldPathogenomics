@@ -157,10 +157,11 @@ class FastxTrimmer(SlurmExecutableTask):
         return '''#!/bin/bash -e
         source fastx_toolkit-0.0.13.2
         
-        gzip -cd {R1_in} | fastx_trimmer -f14 -z -o {R1_out} -Q33
-        gzip -cd {R2_in} | fastx_trimmer -f14 -z -o {R2_out} -Q33
-
-        echo "DONE"
+        gzip -cd {R1_in} | fastx_trimmer -f14 -Q33 | gzip > {R1_out}.temp ;
+        gzip -cd {R2_in} | fastx_trimmer -f14 -Q33 | gzip > {R2_out}.temp ;
+        
+        mv {R1_out}.temp {R1_out}
+        mv {R2_out}.temp {R2_out}
         '''.format(R1_in=self.input()[0].path,
                    R2_in=self.input()[1].path,
                    R1_out=self.output()[0].path,

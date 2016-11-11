@@ -417,9 +417,7 @@ class PlotAlleleFreq(SlurmExecutableTask):
                 $gatk -T VariantsToTable -R {reference} -AMD -V {input} -F CHROM -F POS -F REF -F ALT -F DP -GF AD  --out {temp1}
                 grep -ve "NA" <  {temp1}  > {temp2}
 
-                python {script_dir}/plotAF.py {temp2} {output}.temp
-                
-                mv {output}.temp {output}
+                python {script_dir}/plotAF.py {temp2} {output}
                 '''.format(python=python,
                             script_dir=script_dir,
                             gatk=gatk.format(mem=self.mem),

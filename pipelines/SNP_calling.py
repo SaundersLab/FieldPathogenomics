@@ -4,7 +4,8 @@ from time import sleep
 import time
 import logging
 logger = logging.getLogger('luigi-interface')
-
+alloc_log = logging.getLogger('alloc_log')
+alloc_log.setLevel(logging.DEBUG)
 
 import luigi
 from luigi.contrib.slurm import SlurmExecutableTask
@@ -629,6 +630,12 @@ if __name__ == '__main__':
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
+    
+    alloc_fh = logging.FileHandler(os.path.join(log_dir, os.path.basename(__file__) + "_" + timestr + ".salloc.log"))
+    alloc_fh.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(message)s')
+    alloc_fh.setFormatter(formatter)
+    alloc_log.addHandler(alloc_fh)
     
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]

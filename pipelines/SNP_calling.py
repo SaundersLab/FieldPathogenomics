@@ -27,7 +27,13 @@ Guidelines for harmonious living:
 --------------------------------
 1. Tasks acting on fastq files should output() a list like [_R1.fastq, _R2.fastq]
 2. Tasks acting on a bam should just output() a single Target
-3. Tasks acting on a vcf should just output() a single Target'''
+3. Tasks acting on a vcf should just output() a single Target
+
+Notes
+-------
+job.mem is actually mem_per_cpu
+'''
+
 
 #-----------------------------------------------------------------------#
 
@@ -180,7 +186,7 @@ class Star(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 12000
+        self.mem = 3000
         self.n_cpu = 4
         self.partition = "tgac-medium"
     

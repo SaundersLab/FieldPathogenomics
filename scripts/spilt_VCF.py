@@ -4,7 +4,7 @@ import subprocess
 base = sys.argv[1]
 N_split = int(sys.argv[2])
 
-genome_length = 1767281
+genome_length = 63e6
 per_splt = int(genome_length/N_split)
 
 print("Using {0} records per file".format(per_splt))

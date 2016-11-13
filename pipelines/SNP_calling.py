@@ -192,7 +192,7 @@ class Star(SlurmExecutableTask):
     
     def output(self):        
         return {
-            'star_sam' : LocalTarget(os.path.join(self.scratch_dir, self.library, 'Aligned.out.sam')),
+            'star_bam' : LocalTarget(os.path.join(self.scratch_dir, self.library, 'Aligned.sortedByCoord.out.bam')),
             'star_log' : LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'Log.final.out'))
         }
     
@@ -202,12 +202,12 @@ class Star(SlurmExecutableTask):
                   mkdir -p {scratch_dir}/star_temp
                   cd  {scratch_dir}/star_temp
                   
-                  STAR  --genomeDir {star_genome} -runThreadN {n_cpu} --readFilesCommand gunzip -c --readFilesIn {R1} {R2}
+                  STAR  --genomeDir {star_genome} --outSAMtype BAM SortedByCoordinate --runThreadN {n_cpu} --readFilesCommand gunzip -c --readFilesIn {R1} {R2}
                   
                   mv {scratch_dir}/star_temp/Log.final.out {star_log}
-                  mv {scratch_dir}/star_temp/Aligned.out.sam {star_sam}
+                  mv {scratch_dir}/star_temp/Aligned.sortedByCoord.out.bam {star_bam}
                   
-                  '''.format(star_sam=self.output()['star_sam'].path,
+                  '''.format(star_bam=self.output()['star_bam'].path,
                              star_log=self.output()['star_log'].path,
                              scratch_dir=os.path.join(self.scratch_dir, self.library),
                              star_genome=self.star_genome, 
@@ -238,7 +238,7 @@ class CleanSam(SlurmExecutableTask):
                mv {output}.temp {output}
                mv {output}.temp.bai {output}.bai
                
-                '''.format(input=self.input()['star_sam'].path, 
+                '''.format(input=self.input()['star_bam'].path, 
                            output=self.output().path,
                            picard=picard.format(mem=self.mem))
 

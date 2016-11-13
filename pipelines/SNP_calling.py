@@ -201,8 +201,8 @@ class Star(SlurmExecutableTask):
                   mv {scratch_dir}/star_temp/Log.final.out {star_log}
                   mv {scratch_dir}/star_temp/Aligned.out.sam {star_sam}
                   
-                  '''.format(star_sam=self.output['star_sam'].path,
-                             star_log=self.output['star_log'].path,
+                  '''.format(star_sam=self.output()['star_sam'].path,
+                             star_log=self.output()['star_log'].path,
                              scratch_dir=os.path.join(self.scratch_dir, self.library),
                              star_genome=self.star_genome, 
                              n_cpu=self.n_cpu,

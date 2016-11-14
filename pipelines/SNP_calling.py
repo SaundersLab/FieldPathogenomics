@@ -488,31 +488,72 @@ class GenotypeGVCF(SlurmExecutableTask):
     
     def input(self):
         ## THIS IS A MASSIVE FAT HACK
-        return  [LocalTarget(os.path.join(self.base_dir, library, library + ".g.vcf")) for library in self.lib_list]
+        return  [LocalTarget(os.path.join(self.base_dir, 'libraries', library, library + ".g.vcf")) for library in self.lib_list]
         
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, self.output_prefix+"_raw.vcf.gz"))
         
     def work_script(self):
-        return ('''#!/bin/bash -e
+        return '''#!/bin/bash -e
                 source jre-8u92
                 source gatk-3.6.0
                 gatk='{gatk}'
-                $gatk -T GenotypeGVCFs --logging_level ERROR -R {reference} -o {output}.temp --includeNonVariantSites 
+                $gatk -T GenotypeGVCFs -R {reference} -o {temp_out} --includeNonVariantSites {variants}
                 
-                mv {output}.temp {output}
-                '''.format(output=self.output().path,
-                           gatk=gatk.format(mem=self.mem),
-                           reference=self.reference)+
-                "\n".join(["--variant "+ lib.path +" \\" for lib in self.input()]))
+                
+                mv {temp_out} {output}
+                '''.format(temp_out=os.path.join(os.path.split(self.output().path)[0],"temp.vcf.gz"),
+                           output=self.output().path,
+                           gatk=gatk.format(mem=self.mem*self.n_cpu),
+                           reference=self.reference,
+                           variants="\n".join(["--variant "+ lib.path +" \\" for lib in self.input()]) )
 
 @requires(GenotypeGVCF)
+class ScatterVCF(SlurmExecutableTask):
+    N_scatter = luigi.IntParameter(default=5)
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+    
+    def run(self):
+        if self.N_scatter > 1:
+            super().run()
+        elif self.N_scatter < 1:
+            raise Exception("N_scatter must be >0")
+    
+    def output(self):
+        self.dir = os.path.join(self.scratch_dir, self.output_prefix)
+        if self.N_scatter > 1:
+            return [LocalTarget(os.path.join(self.dir,'raw_{0}.vcf.gz'.format(i))) for i in range(self.N_scatter)]
+        elif self.N_scatter == 1:
+            return [self.input()]
+        
+    def work_script(self):
+        return '''#!/bin/bash -e
+                source vcftools-0.1.13;
+                mkdir -p {dir}/temp
+                
+                bgzip -cd {input} | python {script_dir}/spilt_VCF.py {dir}/temp/raw {N_scatter}
+                
+                mv {dir}/temp/* {dir}
+                rmdir {dir}/temp
+                '''.format(dir=self.dir,
+                           script_dir=script_dir,
+                           input=self.input().path,
+                           N_scatter=self.N_scatter)
+
+@requires(ScatterVCF)
 class VcfToolsFilter(SlurmExecutableTask):
     '''Applies hard filtering to the raw callset'''
     GQ = luigi.IntParameter(default=30)
     QD = luigi.IntParameter(default=5)
     FS = luigi.IntParameter(default=30)
     mask = luigi.Parameter(default="PST130_RNASeq_collapsed_exons.bed")
+    scatter_idx = luigi.IntParameter()
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -522,7 +563,7 @@ class VcfToolsFilter(SlurmExecutableTask):
         self.partition = "tgac-medium"
         
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_filtered.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_filtered"+str(self.scatter_idx)+".vcf.gz"))
     
     def work_script(self):
         self.temp1 = TemporaryFile()
@@ -534,9 +575,11 @@ class VcfToolsFilter(SlurmExecutableTask):
                 
                 bcftools view --apply-filters . {input} -o {temp1} -O z --threads 1
                 bcftools filter {temp1} -e "FMT/RGQ < {GQ} || FMT/GQ < {GQ} || QD < {QD} || FS > {FS}" --set-GTs . -o {temp2} -O z --threads 1
-                vcftools --gzvcf {temp2} --recode --max-missing 0.000001 --stdout --bed {mask} | bgzip -c > {output}
+                vcftools --gzvcf {temp2} --recode --max-missing 0.000001 --stdout --bed {mask} | bgzip -c > {output}.temp
+                
+                mv {output}.temp {output}
                 tabix -p vcf {output}
-                '''.format(input=self.input().path,
+                '''.format(input=self.input()[self.scatter_idx].path,
                            output=self.output().path,
                            GQ=self.GQ,
                            QD=self.QD,
@@ -556,18 +599,20 @@ class GetSNPs(SlurmExecutableTask):
         self.partition = "tgac-medium"
     
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_SNPs_only.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_SNPs_only"+str(self.scatter_idx)+".vcf.gz"))
         
     def work_script(self):
         return '''#!/bin/bash -e
                   source jre-8u92
                   source gatk-3.6.0
                   gatk='{gatk}'
-                  $gatk -T -T SelectVariants -V {input} -R {reference} --restrictAllelesTo BIALLELIC --selectTypeToInclude SNP --out {output}
+                  $gatk -T -T SelectVariants -V {input} -R {reference} --restrictAllelesTo BIALLELIC --selectTypeToInclude SNP --out /dev/stdout | gzip -c > {output}.temp
+                  
+                  mv {output}.temp {output}
                   '''.format(input=self.input().path,
                              output=self.output().path,
                              reference=self.reference,
-                             gatk=gatk.format(mem=self.mem))
+                             gatk=gatk.format(mem=self.mem*self.n_cpu))
 
 @requires(VcfToolsFilter)
 class GetINDELs(SlurmExecutableTask):
@@ -580,18 +625,20 @@ class GetINDELs(SlurmExecutableTask):
         self.partition = "tgac-medium"
     
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_INDELs_only.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_INDELs_only"+str(self.scatter_idx)+".vcf.gz"))
         
     def work_script(self):
         return '''#!/bin/bash -e
                   source jre-8u92
                   source gatk-3.6.0
                   gatk='{gatk}'
-                  $gatk -T -T SelectVariants -V {input} -R {reference} --selectTypeToInclude MNP  --selectTypeToInclude MIXED  --out {output}
+                  $gatk -T -T SelectVariants -V {input} -R {reference} --selectTypeToInclude MNP  --selectTypeToInclude MIXED   --out /dev/stdout | gzip -c > {output}.temp
+                  
+                  mv {output}.temp {output}
                   '''.format(input=self.input().path,
                              output=self.output().path,
                              reference=self.reference,
-                             gatk=gatk.format(mem=self.mem))
+                             gatk=gatk.format(mem=self.mem*self.n_cpu))
 
 @requires(VcfToolsFilter)
 class GetRefSNPSs(SlurmExecutableTask):
@@ -604,29 +651,119 @@ class GetRefSNPSs(SlurmExecutableTask):
         self.partition = "tgac-medium"
     
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_RefSNPs.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_RefSNPs"+str(self.scatter_idx)+".vcf.gz"))
         
     def work_script(self):
         return '''#!/bin/bash -e
                   source jre-8u92
                   source gatk-3.6.0
                   gatk='{gatk}'
-                  $gatk -T -T SelectVariants -V {input} -R {reference} --restrictAllelesTo BIALLELIC --selectTypeToInclude SYMBOLIC --selectTypeToInclude NO_VARIATION  --selectTypeToInclude SNP --out {output}
+                  $gatk -T -T SelectVariants -V {input} -R {reference} --restrictAllelesTo BIALLELIC --selectTypeToInclude SYMBOLIC --selectTypeToInclude NO_VARIATION  --selectTypeToInclude SNP  --out /dev/stdout | \
+                  gzip -c > {output}.temp
+                  
+                  mv {output}.temp {output}
                   '''.format(input=self.input().path,
                              output=self.output().path,
                              reference=self.reference,
-                             gatk=gatk.format(mem=self.mem))
-
-#-----------------------------------------------------------------------#
+                             gatk=gatk.format(mem=self.mem*self.n_cpu))
 
 @inherits(GetSNPs)
-@inherits(GetINDELs)
+class GatherSNPs(SlurmExecutableTask):
+    scatter_idx=None
+    def requires(self):
+        return [self.clone_parent(scatter_idx=i) for i in range(self.N_scatter)]
+    def output(self):
+        return  LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_SNPs.vcf.gz"))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+        
+    def work_script(self):
+        return '''#!/bin/bash -e
+                picard='{picard}'
+                source vcftools-0.1.13;
+                source jre-8u92
+                
+                $picard MergeVcfs O=/dev/stdout {in_flags} | bgzip -c > {output}.temp
+                
+                mv {output}.temp {output}
+                '''.format(picard=picard.format(mem=self.mem*self.n_cpu),
+                           output=self.output().path,
+                           in_flags="I=" + " I=".join([x.path for x in self.input()])
+                           )
+
 @inherits(GetRefSNPSs)
+class GatherRefSNPs(SlurmExecutableTask):
+    scatter_idx=None
+    def requires(self):
+        return [self.clone_parent(scatter_idx=i) for i in range(self.N_scatter)]
+    def output(self):
+        return  LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_RefSNPs.vcf.gz"))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+        
+    def work_script(self):
+        return '''#!/bin/bash -e
+                picard='{picard}'
+                source vcftools-0.1.13;
+                source jre-8u92
+                
+                $picard MergeVcfs O=/dev/stdout {in_flags} | bgzip -c > {output}.temp
+                
+                mv {output}.temp {output}
+                '''.format(picard=picard.format(mem=self.mem*self.n_cpu),
+                           output=self.output().path,
+                           in_flags="I=" + " I=".join([x.path for x in self.input()])
+                           )
+                           
+@inherits(GetINDELs)
+class GatherINDELs(SlurmExecutableTask):
+    scatter_idx=None
+    def requires(self):
+        return [self.clone_parent(scatter_idx=i) for i in range(self.N_scatter)]
+    def output(self):
+        return  LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_INDELs.vcf.gz"))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+        
+    def work_script(self):
+        return '''#!/bin/bash -e
+                picard='{picard}'
+                source vcftools-0.1.13;
+                source jre-8u92
+                
+                $picard MergeVcfs O=/dev/stdout {in_flags} | bgzip -c > {output}.temp
+                
+                mv {output}.temp {output}
+                '''.format(picard=picard.format(mem=self.mem*self.n_cpu),
+                           output=self.output().path,
+                           in_flags="I=" + " I=".join([x.path for x in self.input()])
+                           )
+                           
+#-----------------------------------------------------------------------#
+
+@inherits(GatherSNPs)
+@inherits(GatherRefSNPs)
+@inherits(GatherINDELs)
 class SnpCalling(luigi.WrapperTask):
     def requires(self):
-        yield self.clone(GetSNPs)
-        yield self.clone(GetINDELs)
-        yield self.clone(GetRefSNPSs)
+        yield self.clone(GatherINDELs)
+        yield self.clone(GatherSNPs)
+        yield self.clone(GatherRefSNPs)
 
 
 if __name__ == '__main__':

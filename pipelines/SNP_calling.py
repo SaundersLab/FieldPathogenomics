@@ -236,11 +236,9 @@ class CleanSam(SlurmExecutableTask):
                $picard CleanSam VERBOSITY=ERROR QUIET=true I={input} O={output}.temp
                
                mv {output}.temp {output}
-               mv {output}.temp.bai {output}.bai
-               
                 '''.format(input=self.input()['star_bam'].path, 
                            output=self.output().path,
-                           picard=picard.format(mem=self.mem))
+                           picard=picard.format(mem=self.mem*self.n_cpu))
 
 @requires(CleanSam)
 class AddReadGroups(SlurmExecutableTask):
@@ -262,13 +260,11 @@ class AddReadGroups(SlurmExecutableTask):
                picard='{picard}' 
                $picard AddOrReplaceReadGroups VERBOSITY=ERROR QUIET=true I={input} O={output}.temp SO=coordinate RGID=Star RGLB={lib} RGPL=Ilumina RGPU=Ilumina RGSM={lib}
                
-               mv {output}.temp {output}
-               mv {output}.temp.bai {output}.bai
-                
+               mv {output}.temp {output}                
                 '''.format(input=self.input().path, 
                            output=self.output().path,
                            lib=self.library,
-                           picard=picard.format(mem=self.mem))
+                           picard=picard.format(mem=self.mem*self.n_cpu))
 
 @requires(AddReadGroups)
 class MarkDuplicates(SlurmExecutableTask):
@@ -288,13 +284,12 @@ class MarkDuplicates(SlurmExecutableTask):
                source jre-8u92
                source picardtools-2.1.1
                picard='{picard}'
-               $picard MarkDuplicates VERBOSITY=ERROR QUIET=true I={input} O={output}.temp CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT M=/dev/null
+               $picard MarkDuplicates VERBOSITY=ERROR QUIET=true I={input} O={output}.temp CREATE_INDEX=false VALIDATION_STRINGENCY=SILENT M=/dev/null
                
                mv {output}.temp {output}
-               mv {output}.temp.bai {output}.bai
                 '''.format(input=self.input().path, 
                            output=self.output().path,
-                           picard=picard.format(mem=self.mem))
+                           picard=picard.format(mem=self.mem*self.n_cpu))
 
 @requires(MarkDuplicates)
 class BaseQualityScoreRecalibration(SlurmExecutableTask):
@@ -349,8 +344,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
                   $gatk -T PrintReads -R {reference} -I {input} -BQSR {recal} -o {output}.temp
                   
                   mv {output}.temp {output}
-                  mv {output}.temp.bai {output}.bai
-                '''.format(gatk=gatk.format(mem=self.mem),
+                '''.format(gatk=gatk.format(mem=self.mem*self.n_cpu),
                            input=self.input().path,
                            output=self.output().path,
                            reference=self.reference,
@@ -376,13 +370,17 @@ class SplitNCigarReads(SlurmExecutableTask):
                source jre-8u92
                source gatk-3.6.0
                gatk='{gatk}'
+               picard='{picard}'
+               
+               $picard BuildBamIndex VERBOSITY=ERROR QUIET=true I={input}
                $gatk -T SplitNCigarReads --logging_level ERROR -R {reference} -I {input} -o {output}.temp -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
                
                mv {output}.temp.bai {output}.bai
                mv {output}.temp {output}
                 '''.format(input=self.input().path, 
                            output=self.output().path,
-                           gatk=gatk.format(mem=self.mem),
+                           picard=picard.format(mem=self.mem*self.n_cpu),
+                           gatk=gatk.format(mem=self.mem*self.n_cpu),
                            reference=self.reference) 
 
 @requires(SplitNCigarReads)
@@ -403,11 +401,16 @@ class HaplotypeCaller(SlurmExecutableTask):
                 source jre-8u92
                 source gatk-3.6.0
                 gatk='{gatk}'
-                $gatk -T HaplotypeCaller --logging_level ERROR -R {reference} -I {input} -dontUseSoftClippedBases --emitRefConfidence GVCF -o {output}.temp
+                picard='{picard}'
+                
+                #$picard BuildBamIndex VERBOSITY=ERROR QUIET=true I={input} 
+                $gatk -T HaplotypeCaller --logging_level ERROR -R {reference} -I {input} -dontUseSoftClippedBases --variant_index_type LINEAR --variant_index_parameter 128000 --emitRefConfidence GVCF -o {output}.temp
+                
                 mv {output}.temp {output}
         '''.format(input=self.input().path, 
                    output=self.output().path,
-                   gatk=gatk.format(mem=self.mem),
+                   gatk=gatk.format(mem=self.mem*self.n_cpu),
+                   picard=picard.format(mem=self.mem*self.n_cpu),
                    reference=self.reference) 
 
 @requires(HaplotypeCaller)
@@ -438,7 +441,7 @@ class PlotAlleleFreq(SlurmExecutableTask):
                 python {script_dir}/plotAF.py {temp2} {output}
                 '''.format(python=python,
                             script_dir=script_dir,
-                            gatk=gatk.format(mem=self.mem),
+                            gatk=gatk.format(mem=self.mem*self.n_cpu),
                             reference=self.reference,
                             input=self.input().path,
                             output=self.output().path,

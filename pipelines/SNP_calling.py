@@ -86,7 +86,9 @@ class PythonFilter(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 8000
+        # Set memory dynamically based in fastq size
+        r1_size = os.path.getsize(self.input()[0].path)
+        self.mem = int(round(r1_size*2*1.2/1e9)*1e3)
         self.n_cpu = 1
         self.partition = "tgac-medium"
         

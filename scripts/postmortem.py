@@ -8,10 +8,10 @@ import pandas as pd
 import matplotlib 
 matplotlib.use('pdf')
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
-
-task_file = sys.argv[1]
-base_dir = sys.argv[2]
+fastq_path = '/tgac/scratch/buntingd'
+bam_path = '/tgac/scratch/buntingd'
 
 pow_to_G = dict(zip(['', 'B', 'K', 'M', 'G'], [1024**-3, 1024**-3, 1024**-2, 1024**-1, 1024**0]))
 
@@ -44,10 +44,18 @@ class Task():
         super(Task).__init__()
         
         self.task_id = task_id
-        self.type, self.lib, = re.match('^(\S+)_(LIB\S+?)_', self.task_id).groups()
+        self.type, self.lib, =  re.match('^(\S+)_(LIB\S+?)_', self.task_id).groups()
+        ## Differentiate Tasks run for a lib and those run for all samples
+        if '_' in self.type:
+            self.type = self.type.split('_')[0]
+            self.lib = ''
+             
         self.jobid = jobid
     
 if __name__ == '__main__':
+    task_file = sys.argv[1]
+    base_dir = task_file.rsplit(".", 1)[0]
+   
     tasks = {}
     with open(task_file, 'r') as f:
         for line in f:
@@ -69,7 +77,7 @@ if __name__ == '__main__':
     completed = task_table.ix[task_table['State'] == 'COMPLETED']
         
     ## By Res
-    res_path = os.path.join(base_dir, '_'.join(task_file.split('.')[:-1]), 'by_res')
+    res_path = os.path.join(base_dir, 'by_res')
     os.makedirs(res_path, exist_ok=True)
     
     for res in ['MaxDiskWrite','MaxDiskRead','AveRSS','MaxRSS','AveVMSize','MaxVMSize']:
@@ -86,7 +94,7 @@ if __name__ == '__main__':
     plt.close()
     
     ## By Task
-    task_path = os.path.join(base_dir, '_'.join(task_file.split('.')[:-1]), 'by_task')
+    task_path = os.path.join(base_dir, 'by_task')
     os.makedirs(task_path, exist_ok=True)
     
     for task in set(completed['Type']):
@@ -98,6 +106,89 @@ if __name__ == '__main__':
         plt.close()
     
     ## Elapsed time breakdown
-    
     completed.groupby(['Type', 'Lib'])['Elapsed'].sum().unstack('Type').plot(kind='bar', stacked=True, figsize=(20,10))
-    plt.savefig(os.path.join(base_dir, '_'.join(task_file.split('.')[:-1]), 'Lib_time.pdf'))
+    plt.savefig(os.path.join(base_dir, 'Lib_time.pdf'))
+    
+    ## By fastq size
+    fastq_size = []
+    os.makedirs(os.path.join(base_dir, 'scatter_plots'), exist_ok=True)
+    for lib in completed['Lib']:
+        if lib:
+            fastq_size.append(os.path.getsize(os.path.join(fastq_path,lib, 'raw_R1.fastq.gz'))/1024**3)
+        else:
+            fastq_size.append(None)
+    
+    completed['Fastq_size'] = fastq_size
+    
+    gb = completed.groupby('Type')
+
+    pp = PdfPages(os.path.join(base_dir, 'scatter_plots', 'fastq.pdf'))
+    plt.figure()
+    for name, group in gb:
+        if name in ['FetchFastqGZ', 'PythonFilter', 'FastxTrimmer', 'Star']:
+            plt.plot(group.Fastq_size, group.Elapsed, '.', label=name)
+    plt.xlabel('Fastq.gz size (GB)')
+    plt.ylabel('Time (Hours)')
+    plt.legend()
+    pp.savefig()
+    
+    plt.figure()
+    for name, group in gb:
+        if name in ['FetchFastqGZ', 'PythonFilter', 'FastxTrimmer', 'Star']:
+            plt.plot(group.Fastq_size, group.AveRSS, '.', label=name)
+    plt.xlabel('Fastq.gz size (GB)')
+    plt.ylabel('AveRSS (GB)')
+    plt.legend()
+    pp.savefig()
+    
+    plt.figure()
+    for name, group in gb:
+        if name in ['FetchFastqGZ', 'PythonFilter', 'FastxTrimmer', 'Star']:
+            plt.plot(group.Fastq_size, group.AveVMSize, '.', label=name)
+    plt.xlabel('Fastq.gz size (GB)')
+    plt.ylabel('AveVMSize (GB)')
+    plt.legend()
+    pp.savefig()
+    pp.close()
+    
+    
+    ## By bam size
+    bam_size = []
+    for lib in completed['Lib']:
+        if lib:
+            bam_size.append(os.path.getsize(os.path.join(bam_path,lib, 'Aligned.out_cleaned.bam'))/1024**3)
+        else:
+            bam_size.append(None)
+    
+    completed['Bam_size'] = bam_size
+    
+    pp = PdfPages(os.path.join(base_dir, 'scatter_plots', 'bam.pdf'))
+   
+    plt.figure()
+    for name, group in gb:
+        if name in ['AddReadGroups', 'CleanSam', 'HaplotypeCaller', 'MarkDuplicates', 'PlotAlleleFreq', 'SplitNCigarReads']:
+            plt.plot(group.Fastq_size, group.Elapsed, 'o', label=name)
+    plt.xlabel('BAM size (GB)')
+    plt.ylabel('Time (Hours)')
+    plt.legend()
+    pp.savefig()
+   
+    plt.figure()
+    for name, group in gb:
+        if name in ['AddReadGroups', 'CleanSam', 'HaplotypeCaller', 'MarkDuplicates', 'PlotAlleleFreq', 'SplitNCigarReads']:
+            plt.plot(group.Fastq_size, group.AveRSS, 'o', label=name)
+    plt.xlabel('BAM size (GB)')
+    plt.ylabel('AveRSS (GB)')
+    plt.legend()
+    pp.savefig()
+   
+    plt.figure()
+    for name, group in gb:
+        if name in ['AddReadGroups', 'CleanSam', 'HaplotypeCaller', 'MarkDuplicates', 'PlotAlleleFreq', 'SplitNCigarReads']:
+            plt.plot(group.Fastq_size, group.AveVMSize, 'o', label=name)
+    plt.xlabel('BAM size (GB)')
+    plt.ylabel('AveVMSize (GB)')
+    plt.legend()
+    pp.savefig()
+    
+    pp.close()

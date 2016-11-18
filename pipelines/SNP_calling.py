@@ -406,7 +406,7 @@ class HaplotypeCaller(SlurmExecutableTask):
                 picard='{picard}'
                 
                 #$picard BuildBamIndex VERBOSITY=ERROR QUIET=true I={input} 
-                $gatk -T HaplotypeCaller --logging_level ERROR -R {reference} -I {input} -dontUseSoftClippedBases --variant_index_type LINEAR --variant_index_parameter 128000 --emitRefConfidence GVCF -o {output}.temp
+                $gatk -T HaplotypeCaller  -R {reference} -I {input} -dontUseSoftClippedBases --variant_index_type LINEAR --variant_index_parameter 128000 --emitRefConfidence GVCF -o {output}.temp
                 
                 mv {output}.temp {output}
         '''.format(input=self.input().path, 
@@ -690,9 +690,9 @@ class GatherSNPs(SlurmExecutableTask):
                 source vcftools-0.1.13;
                 source jre-8u92
                 
-                $picard MergeVcfs O=/dev/stdout {in_flags} | bgzip -c > {output}.temp
+                $picard MergeVcfs O={output}.temp {in_flags} 
                 
-                mv {output}.temp {output}
+                mv {output}.temp.vcf.gz {output}
                 '''.format(picard=picard.format(mem=self.mem*self.n_cpu),
                            output=self.output().path,
                            in_flags="I=" + " I=".join([x.path for x in self.input()])
@@ -719,9 +719,9 @@ class GatherRefSNPs(SlurmExecutableTask):
                 source vcftools-0.1.13;
                 source jre-8u92
                 
-                $picard MergeVcfs O=/dev/stdout {in_flags} | bgzip -c > {output}.temp
+                $picard MergeVcfs O={output}.temp {in_flags} 
                 
-                mv {output}.temp {output}
+                mv {output}.temp.vcf.gz {output}
                 '''.format(picard=picard.format(mem=self.mem*self.n_cpu),
                            output=self.output().path,
                            in_flags="I=" + " I=".join([x.path for x in self.input()])
@@ -748,9 +748,9 @@ class GatherINDELs(SlurmExecutableTask):
                 source vcftools-0.1.13;
                 source jre-8u92
                 
-                $picard MergeVcfs O=/dev/stdout {in_flags} | bgzip -c > {output}.temp
+                $picard MergeVcfs O={output}.temp.vcf.gz {in_flags} 
                 
-                mv {output}.temp {output}
+                mv {output}.temp.vcf.gz {output}
                 '''.format(picard=picard.format(mem=self.mem*self.n_cpu),
                            output=self.output().path,
                            in_flags="I=" + " I=".join([x.path for x in self.input()])

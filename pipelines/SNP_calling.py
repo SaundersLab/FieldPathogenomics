@@ -403,16 +403,13 @@ class HaplotypeCaller(SlurmExecutableTask):
                 source jre-8u92
                 source gatk-3.6.0
                 gatk='{gatk}'
-                picard='{picard}'
                 
-                #$picard BuildBamIndex VERBOSITY=ERROR QUIET=true I={input} 
                 $gatk -T HaplotypeCaller  -R {reference} -I {input} -dontUseSoftClippedBases --variant_index_type LINEAR --variant_index_parameter 128000 --emitRefConfidence GVCF -o {output}.temp
                 
                 mv {output}.temp {output}
         '''.format(input=self.input().path, 
                    output=self.output().path,
                    gatk=gatk.format(mem=self.mem*self.n_cpu),
-                   picard=picard.format(mem=self.mem*self.n_cpu),
                    reference=self.reference) 
 
 @requires(HaplotypeCaller)
@@ -788,8 +785,12 @@ if __name__ == '__main__':
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]
     
-    
-    luigi.run(['SnpCalling', '--lib-list', json.dumps(lib_list),
+    luigi.run(['LibraryBatchWrapper', '--lib-list', json.dumps(lib_list),
                              '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
-                             '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
-                             '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[2:])
+                             '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta'] + sys.argv[2:])
+    
+    
+    #luigi.run(['SnpCalling', '--lib-list', json.dumps(lib_list),
+    #                         '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
+    #                         '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
+    #                         '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[2:])

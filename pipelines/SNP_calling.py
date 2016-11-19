@@ -62,6 +62,19 @@ class FetchFastqGZ(SlurmExecutableTask):
         self.n_cpu = 1
         self.partition = "tgac-medium"
         
+    def complete(self):
+        # Use a custom complete method to make sure the fastq files are not empty
+        outputs = luigi.task.flatten(self.output())
+        if all(map(lambda output: output.exists(), outputs)):  
+            if all(map(lambda output: os.path.getsize(output.path) > 0, outputs)):
+                return True
+            else:
+                self.disabled = True
+                logger.info("Failed to find fastq files for {0}")
+                return False
+        else:
+            return False
+            
     def output(self):
         LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")).makedirs()
         return [LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")),

@@ -89,7 +89,7 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
                             R2=self.output()[1].path)  
 
 @requires(FetchFastqGZ)
-class PythonFilter(SlurmExecutableTask):
+class PythonFilter(CheckTargetNonEmpty,SlurmExecutableTask):
     '''Applies the python script fasta_filter.py to remove reads containing Ns and reads not exactly 101bp long'''
     
     def __init__(self, *args, **kwargs):
@@ -166,7 +166,7 @@ class FastxQC(SlurmExecutableTask):
                    nt_dist_R2=self.output()['nt_dist_R2'].path)
 
 @requires(PythonFilter)
-class FastxTrimmer(SlurmExecutableTask):
+class FastxTrimmer(CheckTargetNonEmpty,SlurmExecutableTask):
     '''Uses FastxTrimmer to remove Illumina adaptors and barcodes'''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -194,7 +194,7 @@ class FastxTrimmer(SlurmExecutableTask):
                    R2_out=self.output()[1].path)
 
 @requires(FastxTrimmer)
-class Star(SlurmExecutableTask):
+class Star(CheckTargetNonEmpty, SlurmExecutableTask):
     '''Runs STAR to align to the reference :param str star_genome:'''
     star_genome = luigi.Parameter()
     
@@ -399,7 +399,7 @@ class SplitNCigarReads(SlurmExecutableTask):
                            reference=self.reference) 
 
 @requires(SplitNCigarReads)
-class HaplotypeCaller(SlurmExecutableTask):
+class HaplotypeCaller(CheckTargetNonEmpty, SlurmExecutableTask):
     '''Per sample SNP calling'''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -12,6 +12,7 @@ from luigi.contrib.slurm import SlurmExecutableTask
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
+from src.utils import CheckTargetNonEmpty
 
 picard="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
@@ -44,9 +45,7 @@ job.mem is actually mem_per_cpu
 ## TODO: Fix performace of FetchFastqGZ
 ## TODO: Figure out srun
 
-
-
-class FetchFastqGZ(SlurmExecutableTask):
+class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
     '''Fetches and concatenate the fastq.gz files for ``library`` from the /reads/ server
      :param str library: library name  '''
     
@@ -64,17 +63,14 @@ class FetchFastqGZ(SlurmExecutableTask):
         
     def complete(self):
         # Use a custom complete method to make sure the fastq files are not empty
-        outputs = luigi.task.flatten(self.output())
-        if all(map(lambda output: output.exists(), outputs)):  
-            if all(map(lambda output: os.path.getsize(output.path) > 0, outputs)):
-                return True
-            else:
-                self.disabled = True
-                logger.info("Failed to find fastq files for {0}")
-                return False
-        else:
+        if not super().complete():
+            logger.info("Failed to find fastq files for {0}".format(self.library))
+            self.has_excessive_failures = lambda self : True
+            self.disabled = True
             return False
-            
+        else:
+            return True
+        
     def output(self):
         LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")).makedirs()
         return [LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")),

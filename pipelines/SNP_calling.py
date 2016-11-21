@@ -231,7 +231,7 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
                              R2=self.input()[1].path,)
 
 @requires(Star)
-class CleanSam(SlurmExecutableTask):
+class CleanSam(CheckTargetNonEmpty,SlurmExecutableTask):
     '''Cleans the provided SAM/BAM, soft-clipping beyond-end-of-reference alignments and setting MAPQ to 0 for unmapped reads'''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -256,7 +256,7 @@ class CleanSam(SlurmExecutableTask):
                            picard=picard.format(mem=self.mem*self.n_cpu))
 
 @requires(CleanSam)
-class AddReadGroups(SlurmExecutableTask):
+class AddReadGroups(CheckTargetNonEmpty,SlurmExecutableTask):
     '''Sets the read group to the sample name, required for GATK'''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -282,7 +282,7 @@ class AddReadGroups(SlurmExecutableTask):
                            picard=picard.format(mem=self.mem*self.n_cpu))
 
 @requires(AddReadGroups)
-class MarkDuplicates(SlurmExecutableTask):
+class MarkDuplicates(CheckTargetNonEmpty,SlurmExecutableTask):
     '''Marks optical/PCR duplicates'''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -366,7 +366,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
                            recal=recal)
 
 @requires(BaseQualityScoreRecalibration)
-class SplitNCigarReads(SlurmExecutableTask):
+class SplitNCigarReads(CheckTargetNonEmpty,SlurmExecutableTask):
     '''Required by GATK, breaks up reads spanning introns'''
     reference = luigi.Parameter()
     

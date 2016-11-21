@@ -1,4 +1,4 @@
-import os,sys, json
+import os,sys, json,shutil
 import multiprocessing
 from time import sleep
 import time
@@ -474,15 +474,22 @@ class PerLibPipeline(luigi.WrapperTask):
         yield self.clone(HaplotypeCaller)
         yield self.clone(PlotAlleleFreq)
 
+@requires(PerLibPipeline)
+class CleanUpLib(luigi.Task):
+    priority = 100
+    def run(self):
+        shutil.rmtree(os.path.join(self.scratch_dir, self.library), ignore_errors=True)
+    def complete(self):
+        return self.clone_parent().complete() and not os.path.exists(os.path.join(self.scratch_dir, self.library))
+
 #-----------------------------------------------------------------------#
-@inherits(PerLibPipeline)        
+@inherits(CleanUpLib)        
 class LibraryBatchWrapper(luigi.WrapperTask):
     '''Wrapper task to execute the per library part of the pipline on all
         libraries in :param list lib_list:'''
     lib_list = luigi.ListParameter()        
     library=None
     def requires(self):
-        print(self.lib_list)
         for lib in self.lib_list:
             yield self.clone_parent(library=lib.rstrip())
 # This is a bit of a hack, it allows us to pass parameters to LibraryBatchWrapper and have them propagate
@@ -740,7 +747,7 @@ class GatherRefSNPs(SlurmExecutableTask):
                            output=self.output().path,
                            in_flags="I=" + " I=".join([x.path for x in self.input()])
                            )
-                           
+
 @inherits(GetINDELs)
 class GatherINDELs(SlurmExecutableTask):
     scatter_idx=None
@@ -769,7 +776,7 @@ class GatherINDELs(SlurmExecutableTask):
                            output=self.output().path,
                            in_flags="I=" + " I=".join([x.path for x in self.input()])
                            )
-                           
+
 #-----------------------------------------------------------------------#
 
 @inherits(GatherSNPs)

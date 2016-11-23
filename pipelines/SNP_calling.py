@@ -89,41 +89,6 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
                             R2=self.output()[1].path)  
 
 @requires(FetchFastqGZ)
-class PythonFilter(CheckTargetNonEmpty,SlurmExecutableTask):
-    '''Applies the python script fasta_filter.py to remove reads containing Ns and reads not exactly 101bp long'''
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.mem = 5000
-        self.n_cpu = 1
-        self.partition = "tgac-medium"
-        
-    def output(self):
-        return [LocalTarget(os.path.join(self.scratch_dir, self.library, "pyfilter_R1.fastq.gz")),
-                LocalTarget(os.path.join(self.scratch_dir, self.library, "pyfilter_R2.fastq.gz"))]
-    
-    def run(self):
-        # Set the SLURM request params for this task
-        # Set memory dynamically based in fastq size
-        r1_size = os.path.getsize(self.input()[0].path)
-        self.mem = int(round(r1_size*2*1.2/1e9)*1e3)
-        return super().run()
-        
-    def work_script(self):
-        return '''#!/bin/bash -e 
-                {python}
-                python {script_dir}/fastq_filter.py {R1_in} {R2_in} {R1_out}.temp {R2_out}.temp -L 101
-                
-                mv {R1_out}.temp {R1_out}
-                mv {R2_out}.temp {R2_out}
-                 '''.format(python=python,
-                            script_dir=script_dir,
-                            R1_in=self.input()[0].path,
-                            R2_in=self.input()[1].path,
-                            R1_out=self.output()[0].path,
-                            R2_out=self.output()[1].path)
-
-@requires(PythonFilter)
 class FastxQC(SlurmExecutableTask):
     '''Runs Fastx toolkit to plot the nucleotide and base call quality score distributions '''
     def __init__(self, *args, **kwargs):
@@ -165,7 +130,7 @@ class FastxQC(SlurmExecutableTask):
                    nt_dist_R1=self.output()['nt_dist_R1'].path,
                    nt_dist_R2=self.output()['nt_dist_R2'].path)
 
-@requires(PythonFilter)
+@requires(FetchFastqGZ)
 class FastxTrimmer(CheckTargetNonEmpty,SlurmExecutableTask):
     '''Uses FastxTrimmer to remove Illumina adaptors and barcodes'''
     def __init__(self, *args, **kwargs):

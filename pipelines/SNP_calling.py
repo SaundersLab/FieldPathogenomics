@@ -16,6 +16,7 @@ from src.utils import CheckTargetNonEmpty
 
 picard="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
+trimmomatic="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/trimmomatic/0.36/x86_64/bin/trimmomatic-0.36.jar "
 python="source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 # Ugly hack
@@ -88,6 +89,44 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
                             R1=self.output()[0].path,
                             R2=self.output()[1].path)  
 
+
+@requires(FetchFastqGZ)
+class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 2000
+        self.n_cpu = 3
+        self.partition = "tgac-medium"
+    
+    def output(self):
+        return [LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R1.fastq.gz")),
+                LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R2.fastq.gz"))]
+    def work_script(self):
+        return '''#!/bin/bash -e
+               source jre-8u92
+               source trimmomatic-0.30
+               
+               cd {scratch_dir}
+               trimmomatic='{trimmomatic}'
+               $trimmomatic PE -threads 8 {R1_in} {R2_in} -baseout temp.fastq.gz  ILLUMINACLIP:{adapters}:2:30:10:4 SLIDINGWINDOW:4:20 MINLEN:50
+               
+               #cat temp_1P.fastq.gz >> temp_1U.fastq.gz
+               #rm temp_1P.fastq.gz
+               #cat temp_2P.fastq.gz >> temp_2U.fastq.gz
+               #rm temp_2P.fastq.gz
+               
+               mv temp_1P.fastq.gz {R1_out}
+               mv temp_2P.fastq.gz {R2_out}
+               
+                '''.format(scratch_dir=os.path.join(self.scratch_dir, self.library),
+                           trimmomatic=trimmomatic.format(mem=self.mem*self.n_cpu),
+                           R1_in=self.input()[0].path,
+                           R2_in=self.input()[1].path,
+                           adapters='/tgac/software/testing/trimmomatic/0.30/x86_64/bin/adapters/TruSeq.cat.fa',
+                           R1_out=self.output()[0].path,
+                           R2_out=self.output()[1].path)
+
 @requires(FetchFastqGZ)
 class FastxQC(SlurmExecutableTask):
     '''Runs Fastx toolkit to plot the nucleotide and base call quality score distributions '''
@@ -158,7 +197,7 @@ class FastxTrimmer(CheckTargetNonEmpty,SlurmExecutableTask):
                    R1_out=self.output()[0].path,
                    R2_out=self.output()[1].path)
 
-@requires(FastxTrimmer)
+@requires(Trimmomatic)
 class Star(CheckTargetNonEmpty, SlurmExecutableTask):
     '''Runs STAR to align to the reference :param str star_genome:'''
     star_genome = luigi.Parameter()

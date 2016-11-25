@@ -3,6 +3,11 @@ import os
 import gzip
 from collections import defaultdict
 import subprocess
+import pandas as pd
+
+###############################################################################
+#                         Testing file emptiness                              #
+###############################################################################
 
 def isNeGz(fname):
     with gzip.open(fname, 'rb') as f:
@@ -25,7 +30,6 @@ def isNeBam(fname):
     
 extensions_dispath = defaultdict(lambda : isNePlain, {'bam':isNeBam,
                                                       'gz':isNeGz})
-                      
 def is_not_empty(fname):
 
     try:
@@ -49,3 +53,35 @@ class CheckTargetNonEmpty(object):
         return super().complete() and all(map(is_not_empty, [x.path for x in outputs]))
 
 
+###############################################################################
+#                           Parsing STAR logs                                  #
+###############################################################################
+keep = [
+        'Number of input reads',
+        'Average input read length',
+        'Uniquely mapped reads number',
+        'Average mapped length',
+        'Average mapped length',
+        'Mismatch rate per base, %',
+        ]
+
+def parseStarLog(logfile, lib):
+    '''Parse the star Log.final.out file :param: logfile for the library :param: lib 
+       returns a pandas.Series of the fields defined in keep'''
+    try:
+        s = pd.Series()
+        with open(logfile, 'r') as f:
+            for line in f:
+                split = line.strip().split(" |\t")
+                if len(split) == 2 and split[0] in keep:
+                    s[split[0]] = float(split[1][:-1]) if '%' in split[1] else split[1] 
+    except FileNotFoundError:
+        pd.Series(dict(zip(keep,[float('nan')]*len(keep))))
+    
+    s['Library'] = lib    
+    return s
+
+def parseLibList(liblist, base_dir):
+    return pd.DataFrame([parseStarLog(os.path.join(base_dir, lib, 'Log.final.out'), lib) for lib in liblist]).set_index('Library')
+    
+###############################################################################

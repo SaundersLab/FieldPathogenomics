@@ -12,7 +12,8 @@ from luigi.contrib.slurm import SlurmExecutableTask
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
-from src.utils import CheckTargetNonEmpty
+
+from src.utils import CheckTargetNonEmpty, parseStarLog
 
 picard="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
@@ -470,6 +471,12 @@ class CleanUpLib(luigi.Task):
         shutil.rmtree(os.path.join(self.scratch_dir, self.library), ignore_errors=True)
     def complete(self):
         return self.clone_parent().complete() and not os.path.exists(os.path.join(self.scratch_dir, self.library))
+
+@requires(PerLibPipeline)
+class AlignmentStats(luigi.Task):
+    def run(self):
+        star_df = parseStarLog(self.lib_list, os.path.join(self.base_dir, 'libraries'))
+        star_df.to_csv(os.path.join(self.base_dir, 'libraries', 'AlignmentStats.'+time.strftime("%Y%m%d-%H%M%S")+.csv))
 
 @inherits(CleanUpLib)        
 class LibraryBatchWrapper(luigi.WrapperTask):

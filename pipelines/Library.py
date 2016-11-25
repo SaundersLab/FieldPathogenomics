@@ -53,15 +53,12 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
         self.n_cpu = 1
         self.partition = "tgac-medium"
         
-    def complete(self):
-        # Use a custom complete method to make sure the fastq files are not empty
-        if not super().complete():
-            logger.info("Failed to find fastq files for {0}".format(self.library))
-            self.has_excessive_failures = lambda self : True
-            self.disabled = True
-            return False
-        else:
-            return True
+    def on_failure(self, ex):
+        # Only allow this to fail once
+        self.has_excessive_failures = lambda self : True
+        self.disabled = True
+        logger.info("Failed to find fastq files for {0}".format(self.library))
+        return super().on_failure(ex)
         
     def output(self):
         LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")).makedirs()
@@ -487,9 +484,13 @@ LibraryBatchWrapper.library=None
 
 @requires(LibraryBatchWrapper)
 class AlignmentStats(luigi.Task):
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'libraries', 'AlignmentStats.'+time.strftime("%Y%m%d-%H%M%S")+'.csv'))
+
     def run(self):
         star_df = parseStarLog(self.lib_list, os.path.join(self.base_dir, 'libraries'))
-        star_df.to_csv(os.path.join(self.base_dir, 'libraries', 'AlignmentStats.'+time.strftime("%Y%m%d-%H%M%S")+.csv))
+        star_df.to_csv(self.output().path)
+        
 #-----------------------------------------------------------------------#
 
 

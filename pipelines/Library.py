@@ -472,12 +472,6 @@ class CleanUpLib(luigi.Task):
     def complete(self):
         return self.clone_parent().complete() and not os.path.exists(os.path.join(self.scratch_dir, self.library))
 
-@requires(PerLibPipeline)
-class AlignmentStats(luigi.Task):
-    def run(self):
-        star_df = parseStarLog(self.lib_list, os.path.join(self.base_dir, 'libraries'))
-        star_df.to_csv(os.path.join(self.base_dir, 'libraries', 'AlignmentStats.'+time.strftime("%Y%m%d-%H%M%S")+.csv))
-
 @inherits(CleanUpLib)        
 class LibraryBatchWrapper(luigi.WrapperTask):
     '''Wrapper task to execute the per library part of the pipline on all
@@ -491,7 +485,11 @@ class LibraryBatchWrapper(luigi.WrapperTask):
 # down to all calls to PerLibPipeline.
 LibraryBatchWrapper.library=None
 
-
+@requires(LibraryBatchWrapper)
+class AlignmentStats(luigi.Task):
+    def run(self):
+        star_df = parseStarLog(self.lib_list, os.path.join(self.base_dir, 'libraries'))
+        star_df.to_csv(os.path.join(self.base_dir, 'libraries', 'AlignmentStats.'+time.strftime("%Y%m%d-%H%M%S")+.csv))
 #-----------------------------------------------------------------------#
 
 
@@ -515,6 +513,6 @@ if __name__ == '__main__':
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]
     
-    luigi.run(['LibraryBatchWrapper', '--lib-list', json.dumps(lib_list),
-                             '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
-                             '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta'] + sys.argv[2:])
+    luigi.run(['AlignmentStats', '--lib-list', json.dumps(lib_list),
+                                  '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
+                                  '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta'] + sys.argv[2:])

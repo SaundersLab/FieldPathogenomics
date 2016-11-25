@@ -53,13 +53,6 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
         self.n_cpu = 1
         self.partition = "tgac-medium"
         
-    def on_failure(self, ex):
-        # Only allow this to fail once
-        self.has_excessive_failures = lambda self : True
-        self.disabled = True
-        logger.info("Failed to find fastq files for {0}".format(self.library))
-        return super().on_failure(ex)
-        
     def output(self):
         LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")).makedirs()
         return [LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")),

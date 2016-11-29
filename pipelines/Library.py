@@ -60,8 +60,8 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash -e 
-                  find {read_dir} -name "*{library}*_R1.fastq.gz" -type f  -exec cat {{}}   \; > {R1}.temp
-                  find {read_dir} -name "*{library}*_R2.fastq.gz" -type f  -exec cat {{}}   \; > {R2}.temp
+                  find {read_dir} -name "*{library}*_R1.fastq.gz" -type f  -print | sort | xargs cat  > {R1}.temp
+                  find {read_dir} -name "*{library}*_R2.fastq.gz" -type f  -print | sort | xargs cat  > {R2}.temp
                   
                   mv {R1}.temp {R1}
                   mv {R2}.temp {R2}

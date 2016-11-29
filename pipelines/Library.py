@@ -83,7 +83,8 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
         return [LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R1.fastq.gz")),
                 LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R2.fastq.gz"))]
     def work_script(self):
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
                source jre-8u92
                source trimmomatic-0.30
                
@@ -128,7 +129,8 @@ class FastxQC(SlurmExecutableTask):
             }
     
     def work_script(self):
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
         source fastx_toolkit-0.0.13.2
         
         gzip -cd {R1_in} | fastx_quality_stats -o {stats_R1} -Q33
@@ -164,7 +166,8 @@ class FastxTrimmer(CheckTargetNonEmpty,SlurmExecutableTask):
                 LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R2.fastq.gz"))]
     
     def work_script(self):
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
         source fastx_toolkit-0.0.13.2
         
         gzip -cd {R1_in} | fastx_trimmer -f14 -Q33 | gzip > {R1_out}.temp ;
@@ -196,7 +199,8 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
         }
     
     def work_script(self):
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
                   source star-2.5.0a
                   mkdir -p {scratch_dir}/star_temp
                   cd  {scratch_dir}/star_temp
@@ -228,7 +232,8 @@ class CleanSam(CheckTargetNonEmpty,SlurmExecutableTask):
         return LocalTarget(os.path.join(self.scratch_dir, self.library, 'Aligned.out_cleaned.bam'))
     
     def work_script(self):
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
                source jre-8u92
                source picardtools-2.1.1
                picard='{picard}'
@@ -253,7 +258,8 @@ class AddReadGroups(CheckTargetNonEmpty,SlurmExecutableTask):
         return LocalTarget(os.path.join(self.scratch_dir, self.library, 'rg_added_sorted.bam'))
     
     def work_script(self):
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
                source jre-8u92
                source picardtools-2.1.1
                picard='{picard}' 
@@ -279,7 +285,8 @@ class MarkDuplicates(CheckTargetNonEmpty,SlurmExecutableTask):
         return LocalTarget(os.path.join(self.base_dir, 'libraries',self.library, 'dedupped.bam'))
     
     def work_script(self):
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
                source jre-8u92
                source picardtools-2.1.1
                picard='{picard}'
@@ -335,7 +342,8 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
     
     def work_script(self):
         recal = os.path.join(self.base_dir, 'libraries', self.library, self.library+"_recal.tsv")
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
                   source jre-8u92
                   source gatk-3.6.0
                   gatk='{gatk}'
@@ -365,7 +373,8 @@ class SplitNCigarReads(CheckTargetNonEmpty,SlurmExecutableTask):
         return LocalTarget(os.path.join(self.scratch_dir, self.library, 'split.bam'))
     
     def work_script(self):
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
                source jre-8u92
                source gatk-3.6.0
                gatk='{gatk}'
@@ -396,7 +405,8 @@ class HaplotypeCaller(CheckTargetNonEmpty, SlurmExecutableTask):
         return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, self.library + ".g.vcf"))
         
     def work_script(self):
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
                 source jre-8u92
                 source gatk-3.6.0
                 gatk='{gatk}'
@@ -425,7 +435,8 @@ class PlotAlleleFreq(SlurmExecutableTask):
     def work_script(self):
         self.temp1=TemporaryFile()
         self.temp2=TemporaryFile()
-        return '''#!/bin/bash -e
+        return '''#!/bin/bash
+               set -euo pipefail
                 source jre-8u92
                 {python}
                 source gatk-3.6.0

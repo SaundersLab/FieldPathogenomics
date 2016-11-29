@@ -60,6 +60,8 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash -e 
+                  set -euo pipefail
+                  
                   find {read_dir} -name "*{library}*_R1.fastq.gz" -type f  -print | sort | xargs cat  > {R1}.temp
                   find {read_dir} -name "*{library}*_R2.fastq.gz" -type f  -print | sort | xargs cat  > {R2}.temp
                   
@@ -84,9 +86,9 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
                 LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R2.fastq.gz"))]
     def work_script(self):
         return '''#!/bin/bash
-               set -euo pipefail
                source jre-8u92
                source trimmomatic-0.30
+               set -euo pipefail
                
                cd {scratch_dir}
                trimmomatic='{trimmomatic}'
@@ -130,8 +132,8 @@ class FastxQC(SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash
-               set -euo pipefail
         source fastx_toolkit-0.0.13.2
+        set -euo pipefail
         
         gzip -cd {R1_in} | fastx_quality_stats -o {stats_R1} -Q33
         gzip -cd {R2_in} | fastx_quality_stats -o {stats_R2} -Q33
@@ -167,8 +169,8 @@ class FastxTrimmer(CheckTargetNonEmpty,SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash
-               set -euo pipefail
         source fastx_toolkit-0.0.13.2
+        set -euo pipefail
         
         gzip -cd {R1_in} | fastx_trimmer -f14 -Q33 | gzip > {R1_out}.temp ;
         gzip -cd {R2_in} | fastx_trimmer -f14 -Q33 | gzip > {R2_out}.temp ;
@@ -200,8 +202,9 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash
-               set -euo pipefail
                   source star-2.5.0a
+                  set -euo pipefail
+                  
                   mkdir -p {scratch_dir}/star_temp
                   cd  {scratch_dir}/star_temp
                   
@@ -233,10 +236,11 @@ class CleanSam(CheckTargetNonEmpty,SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash
-               set -euo pipefail
                source jre-8u92
                source picardtools-2.1.1
                picard='{picard}'
+               set -euo pipefail
+               
                $picard CleanSam VERBOSITY=ERROR QUIET=true I={input} O={output}.temp
                
                mv {output}.temp {output}
@@ -259,10 +263,11 @@ class AddReadGroups(CheckTargetNonEmpty,SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash
-               set -euo pipefail
                source jre-8u92
                source picardtools-2.1.1
                picard='{picard}' 
+               set -euo pipefail
+               
                $picard AddOrReplaceReadGroups VERBOSITY=ERROR QUIET=true I={input} O={output}.temp SO=coordinate RGID=Star RGLB={lib} RGPL=Ilumina RGPU=Ilumina RGSM={lib}
                
                mv {output}.temp {output}                
@@ -286,10 +291,11 @@ class MarkDuplicates(CheckTargetNonEmpty,SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash
-               set -euo pipefail
                source jre-8u92
                source picardtools-2.1.1
                picard='{picard}'
+               set -euo pipefail
+               
                $picard MarkDuplicates VERBOSITY=ERROR QUIET=true I={input} O={output}.temp CREATE_INDEX=false VALIDATION_STRINGENCY=SILENT M=/dev/null
                
                mv {output}.temp {output}
@@ -343,10 +349,11 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
     def work_script(self):
         recal = os.path.join(self.base_dir, 'libraries', self.library, self.library+"_recal.tsv")
         return '''#!/bin/bash
-               set -euo pipefail
                   source jre-8u92
                   source gatk-3.6.0
                   gatk='{gatk}'
+                  set -euo pipefail
+                  
                   $gatk -T BaseRecalibrator  -R {reference}  -I {input}  -knownSites {snp_db}  -o {recal}
                   $gatk -T PrintReads -R {reference} -I {input} -BQSR {recal} -o {output}.temp
                   
@@ -379,6 +386,7 @@ class SplitNCigarReads(CheckTargetNonEmpty,SlurmExecutableTask):
                source gatk-3.6.0
                gatk='{gatk}'
                picard='{picard}'
+               set -euo pipefail
                
                $picard BuildBamIndex VERBOSITY=ERROR QUIET=true I={input}
                $gatk -T SplitNCigarReads --logging_level ERROR -R {reference} -I {input} -o {output}.temp -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
@@ -410,6 +418,7 @@ class HaplotypeCaller(CheckTargetNonEmpty, SlurmExecutableTask):
                 source jre-8u92
                 source gatk-3.6.0
                 gatk='{gatk}'
+                set -euo pipefail
                 
                 $gatk -T HaplotypeCaller  -R {reference} -I {input} -dontUseSoftClippedBases --variant_index_type LINEAR --variant_index_parameter 128000 --emitRefConfidence GVCF -o {output}.temp
                 
@@ -441,6 +450,7 @@ class PlotAlleleFreq(SlurmExecutableTask):
                 {python}
                 source gatk-3.6.0
                 gatk='{gatk}'
+                set -euo pipefail
                 
                 $gatk -T VariantsToTable -R {reference} -AMD -V {input} -F CHROM -F POS -F REF -F ALT -F DP -GF AD  --out {temp1}
                 grep -ve "NA" <  {temp1}  > {temp2}

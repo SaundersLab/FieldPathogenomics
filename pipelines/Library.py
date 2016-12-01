@@ -2,18 +2,22 @@ import os,sys, json,shutil
 import multiprocessing
 from time import sleep
 import time
+import sqlalchemy
+
 import logging
 logger = logging.getLogger('luigi-interface')
 alloc_log = logging.getLogger('alloc_log')
 alloc_log.setLevel(logging.DEBUG)
 
 import luigi
+from luigi.contrib import sqla
 from luigi.contrib.slurm import SlurmExecutableTask
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
-from src.utils import CheckTargetNonEmpty, parseStarLog
+from src.utils import CheckTargetNonEmpty, parseStarLog, hash_pipeline
+import src.git as git
 
 picard="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
@@ -26,6 +30,9 @@ log_dir = os.path.join(os.path.split(os.path.split(os.path.split(__file__)[0])[0
 os.makedirs(log_dir, exist_ok=True)
 
 '''
+
+TODO: Migrate making the STAR reference to luigi and correctly set the genome column in AlginmentStats
+
 Guidelines for harmonious living:
 --------------------------------
 1. Tasks acting on fastq files should output() a list like [_R1.fastq, _R2.fastq]
@@ -220,6 +227,51 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
                              n_cpu=self.n_cpu,
                              R1=self.input()[0].path,
                              R2=self.input()[1].path,)
+
+@requires(Star)
+class AlignmentStats(sqla.CopyToTable):
+    columns = [
+        (["Library", sqlalchemy.String(64)], {}),
+        (["input_reads", sqlalchemy.INTEGER], {}),
+        (["input_len", sqlalchemy.FLOAT], {}),
+        (["mapped_reads", sqlalchemy.INTEGER], {}),
+        (["mapped_reads_pc", sqlalchemy.String(10)], {}),
+        (["mapped_len", sqlalchemy.FLOAT], {}),
+        (["mismatch_pc", sqlalchemy.String(10)], {}),
+        (["datetime", sqlalchemy.String(25)], {}), 
+        (["genome", sqlalchemy.String(25)], {}),
+        (["git_commit", sqlalchemy.String(40)], {}),
+        (["pipeline_hash", sqlalchemy.String(40)], {}),
+    ]
+    
+    star_keys = {
+            "Library":"Library",
+            "input_reads":'Number of input reads',
+            "input_len":'Average input read length',
+            "mapped_reads":'Uniquely mapped reads number',
+            "mapped_reads_pc":'Uniquely mapped reads %',
+            "mapped_len":'Average mapped length',
+            "mismatch_pc":'Mismatch rate per base, %',
+            "datetime":"Started job on"
+            }
+            
+    connection_string  = "mysql+pymysql://tgac:tgac_bioinf@tgac-db1.hpccluster/buntingd_fieldpathogenomics"
+    table = "AlignmentStats"  
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        git_commit = git.current_commit_hash(os.path.split(__file__)[0])
+        pipeline_hash = hash_pipeline(self)
+        genome = os.path.split(os.path.dirname(self.star_genome))[1]
+        star_log = parseStarLog(self.input()['star_log'].path, self.library)
+        
+        self._rows = [[star_log[AlignmentStats.star_keys[x[0][0]]] for x in AlignmentStats.columns[:len(star_log)]] + [genome, git_commit, pipeline_hash]]
+
+    def rows(self):
+        return self._rows
+    
+    def update_id(self):
+        return hash(str(self._rows))
 
 @requires(Star)
 class CleanSam(CheckTargetNonEmpty,SlurmExecutableTask):
@@ -496,15 +548,7 @@ class LibraryBatchWrapper(luigi.WrapperTask):
 # down to all calls to PerLibPipeline.
 LibraryBatchWrapper.library=None
 
-@requires(LibraryBatchWrapper)
-class AlignmentStats(luigi.Task):
-    def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'libraries', 'AlignmentStats.'+time.strftime("%Y%m%d-%H%M%S")+'.csv'))
 
-    def run(self):
-        star_df = parseStarLog(self.lib_list, os.path.join(self.base_dir, 'libraries'))
-        star_df.to_csv(self.output().path)
-        
 #-----------------------------------------------------------------------#
 
 
@@ -528,6 +572,6 @@ if __name__ == '__main__':
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]
     
-    luigi.run(['AlignmentStats', '--lib-list', json.dumps(lib_list),
+    luigi.run(['LibraryBatchWrapper', '--lib-list', json.dumps(lib_list),
                                   '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
                                   '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta'] + sys.argv[2:])

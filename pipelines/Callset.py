@@ -61,7 +61,7 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 4000
+        self.mem = 8000
         self.n_cpu = 1
         self.partition = "tgac-medium"
         self.variants = [os.path.join(self.base_dir, 'libraries', library, library + ".g.vcf") for library in self.lib_list]

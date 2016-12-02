@@ -10,10 +10,12 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
-
+   :glob:
+   
    intro
+   protocols
    pipelines
-
+   api
 
 Indices and tables
 ==================

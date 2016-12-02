@@ -16,8 +16,8 @@ from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
-from src.utils import CheckTargetNonEmpty, parseStarLog, hash_pipeline
-import src.git as git
+from src.utils import CheckTargetNonEmpty
+import src.utils as utils
 
 picard="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
@@ -260,10 +260,10 @@ class AlignmentStats(sqla.CopyToTable):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        git_commit = git.current_commit_hash(os.path.split(__file__)[0])
-        pipeline_hash = hash_pipeline(self)
+        git_commit = utils.current_commit_hash(os.path.split(__file__)[0])
+        pipeline_hash = utils.hash_pipeline(self)
         genome = os.path.split(os.path.dirname(self.star_genome))[1]
-        star_log = parseStarLog(self.input()['star_log'].path, self.library)
+        star_log = utils.parseStarLog(self.input()['star_log'].path, self.library)
         
         self._rows = [[star_log[AlignmentStats.star_keys[x[0][0]]] for x in AlignmentStats.columns[:len(star_log)]] + [genome, git_commit, pipeline_hash]]
 

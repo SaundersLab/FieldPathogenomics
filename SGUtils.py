@@ -15,7 +15,7 @@ picard="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools
 python="source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 # Ugly hack
-script_dir = os.path.join(os.path.split(os.path.split(__file__)[0])[0], 'scripts')
+script_dir = os.path.join(os.path.split(__file__)[0], 'scripts')
 
 class ScatterVCF(SlurmExecutableTask):
     
@@ -28,6 +28,7 @@ class ScatterVCF(SlurmExecutableTask):
 
     def work_script(self):
         return '''#!/bin/bash
+                source vcftools-0.1.13;
                 set -eo pipefail
                 {python}
                 mkdir -p {dir}/temp

@@ -44,19 +44,75 @@ class GenomeContigs(luigi.ExternalTask):
     def output(self):
         return LocalTarget(self.mask)
 
-@ScatterGather(ScatterBED, GatherVCF, N_scatter)
-@inherits(GenomeContigs)
-class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
-    '''Combine the per sample g.vcfs into a complete callset
-    :param str output_prefix: '''
+class gVCFs(luigi.ExternalTask):
+    '''For each lib in lib_list get its gVCF'''
+    lib_list = luigi.ListParameter()
+    gVCF_dir = luigi.Parameter()
+    
     output_prefix = luigi.Parameter()
     base_dir = luigi.Parameter(significant=False)
     scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
     reference = luigi.Parameter()
-    lib_list = luigi.ListParameter()        
+    
+    def output(self):
+        return [LocalTarget(os.path.join(self.gVCF_dir, lib, lib+'.g.vcf')) for lib in self.lib_list]
+
+@requires(gVCFs)
+class CombineGVCFs(SlurmExecutableTask, CheckTargetNonEmpty):
+    
+    N_gvcfs = luigi.IntParameter(default=5) # Number of combined gVCFs to end up with
+    idx = luigi.IntParameter()
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 16000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+        
+    def output(self):
+        return LocalTarget(os.path.join(self.scratch_dir, self.output_prefix, "combined", self.output_prefix +"_" + str(self.idx) + ".g.vcf"))
+    
+    def work_script(self):
+        perfile = math.ceil(len(self.input())/self.N_gvcfs)    
+        start_idx = perfile*self.idx
+        end_idx = perfile*(self.idx+1)
+        self.variants = self.input()[start_idx:end_idx] if self.idx < self.N_gvcfs-1 else self.input()[start_idx:]
+        
+        return '''#!/bin/bash
+                source jre-8u92
+                source gatk-3.6.0
+                gatk='{gatk}'
+                
+                set -eo pipefail
+                $gatk -T CombineGVCFs -R {reference} -o {output}.temp {variants}
+                
+                mv {output}.temp {output}
+                '''.format(output=self.output().path,
+                           gatk=gatk.format(mem=self.mem*self.n_cpu),
+                           reference=self.reference,
+                           variants="\\\n".join([" --variant "+ lib.path for lib in self.variants]) )
+
+@inherits(CombineGVCFs)
+class CombineGVCFsWrapper(luigi.Task):
+    idx = None
+    def requires(self):
+        return [self.clone(CombineGVCFs, idx=idx) for idx in range(self.N_gvcfs)]
+        
+    def output(self):
+        return self.input()
+    
+    
+@ScatterGather(ScatterBED, GatherVCF, N_scatter)
+@inherits(GenomeContigs)
+@inherits(CombineGVCFsWrapper)
+class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
+    '''Combine the per sample g.vcfs into a complete callset
+    :param str output_prefix: '''
+
     
     def requires(self):
-        return self.clone(GenomeContigs)
+        return [self.clone(GenomeContigs), self.clone(CombineGVCFsWrapper)]
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -64,7 +120,6 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
         self.mem = 8000
         self.n_cpu = 1
         self.partition = "tgac-medium"
-        self.variants = [os.path.join(self.base_dir, 'libraries', library, library + ".g.vcf") for library in self.lib_list]
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, self.output_prefix+"_raw.vcf.gz"))
@@ -80,10 +135,10 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
                 
                 mv {output}.temp.vcf.gz {output}
                 '''.format(output=self.output().path,
-                           intervals=self.input().path,
+                           intervals=self.input()[0].path,
                            gatk=gatk.format(mem=self.mem*self.n_cpu),
                            reference=self.reference,
-                           variants="\\\n".join([" --variant "+ lib for lib in self.variants]) )
+                           variants="\\\n".join([" --variant "+ lib.path for lib in self.input()[1:]]) )
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
 @inherits(GenotypeGVCF)

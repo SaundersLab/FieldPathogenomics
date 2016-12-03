@@ -433,7 +433,6 @@ class SplitNCigarReads(CheckTargetNonEmpty,SlurmExecutableTask):
     
     def work_script(self):
         return '''#!/bin/bash
-               set -euo pipefail
                source jre-8u92
                source gatk-3.6.0
                gatk='{gatk}'
@@ -466,7 +465,6 @@ class HaplotypeCaller(CheckTargetNonEmpty, SlurmExecutableTask):
         
     def work_script(self):
         return '''#!/bin/bash
-               set -euo pipefail
                 source jre-8u92
                 source gatk-3.6.0
                 gatk='{gatk}'
@@ -497,7 +495,6 @@ class PlotAlleleFreq(SlurmExecutableTask):
         self.temp1=TemporaryFile()
         self.temp2=TemporaryFile()
         return '''#!/bin/bash
-               set -euo pipefail
                 source jre-8u92
                 {python}
                 source gatk-3.6.0

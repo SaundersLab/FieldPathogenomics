@@ -87,11 +87,12 @@ class ScatterGather():
         meta_self = self
         class Work(worktask):
             SG_index = luigi.IntParameter()
-            
+            @property
+            def task_family(self):
+                return worktask.task_family
             def requires(self):
                 s = self.clone(meta_self.Scatter)
                 return [s]+super().requires()[1:] if isinstance(super().requires(), list) else [s]
-
             def input(self):
                 inp = super().input()
                 scattered = inp[0][self.SG_index]

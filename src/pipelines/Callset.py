@@ -7,13 +7,13 @@ alloc_log.setLevel(logging.DEBUG)
 
 import luigi
 from luigi.contrib.slurm import SlurmExecutableTask
-from luigi.contrib.scattergather import ScatterGather
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
 from src.utils import CheckTargetNonEmpty
 from src.SGUtils import ScatterBED, GatherVCF, ScatterVCF
+from src.luigi.scattergather import ScatterGather
 
 picard="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "

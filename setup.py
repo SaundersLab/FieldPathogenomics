@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name = "FieldPathogenomics",
@@ -6,6 +6,6 @@ setup(
     author = "Daniel Bunintg",
     author_email = "daniel.bunting@earlham.ac.uk",
     url = "https://github.com/dnlbunting/FieldPathogenomics/",
-    packages=['src'],
+    packages=find_packages(),
 
 )

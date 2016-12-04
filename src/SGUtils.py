@@ -26,20 +26,34 @@ class ScatterVCF(SlurmExecutableTask):
         self.n_cpu = 1
         self.partition = "tgac-medium"
 
+    def run(self):
+        # Avoid Scatter-Work-Gather-Scatter antipattern by doing a last minute check to see if 
+        if not self.complete():
+            super().run()
+        else:
+            logger.info("Re-using existing scatter")
+            
     def work_script(self):
-        return '''#!/bin/bash
+        dir,filename = os.path.split(self.output()[0].path)
+        base, idx = filename.rsplit('_', maxsplit=1)
+        
+        return '''#!/bin/bash -e
                 source vcftools-0.1.13;
-                set -eo pipefail
                 {python}
                 mkdir -p {dir}/temp
                 
-                bgzip -cd {input} | python {script_dir}/spilt_VCF.py {dir}/temp/{base} {N_scatter}
+                bgzip -cd {input} | python {script_dir}/splitVCF.py {dir}/temp/{base} {N_scatter}
+                
+                for file in {dir}/temp/{base}_*
+                do
+                  tabix -p vcf "$file"
+                done
                 
                 mv {dir}/temp/* {dir}
                 rmdir {dir}/temp
                 '''.format(python=python,
-                           dir=os.path.split(self.output()[0].path)[0],
-                           base=os.path.split(self.output()[0].path)[1][:-7],
+                           dir=dir,
+                           base=base,
                            script_dir=script_dir,
                            input=self.input().path,
                            N_scatter=len(self.output()))

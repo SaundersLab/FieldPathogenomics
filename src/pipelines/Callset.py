@@ -101,8 +101,7 @@ class CombineGVCFsWrapper(luigi.Task):
         
     def output(self):
         return self.input()
-    
-    
+
 @ScatterGather(ScatterBED, GatherVCF, N_scatter)
 @inherits(GenomeContigs)
 @inherits(CombineGVCFsWrapper)
@@ -138,7 +137,7 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
                            intervals=self.input()[0].path,
                            gatk=gatk.format(mem=self.mem*self.n_cpu),
                            reference=self.reference,
-                           variants="\\\n".join([" --variant "+ lib.path for lib in self.input()[1:]]) )
+                           variants="\\\n".join([" --variant "+ lib.path for lib in self.input()[1]]) )
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
 @inherits(GenotypeGVCF)

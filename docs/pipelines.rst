@@ -156,6 +156,7 @@ Flags
     Name to attach to callset
 
 .. attribute:: --mask
+
     BED file of regions on which to perform genotyping e.g. exons for RNAseq
 
 .. attribute:: --base-dir

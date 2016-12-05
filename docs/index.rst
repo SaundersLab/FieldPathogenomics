@@ -15,6 +15,7 @@ Contents:
    intro
    protocols
    pipelines
+   databases
    api
 
 Indices and tables

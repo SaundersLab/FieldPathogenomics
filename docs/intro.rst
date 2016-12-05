@@ -17,6 +17,7 @@ Using a luigi increases robustness and flexibility above using shell scripts etc
     * Scheduler lazily executes the task graph - will reuse existing data if possible 
     * Easy to interface with SQL
     * It's really fast to scaffold pipelines like this, allows for rapid prototyping
+    * SLURM accounting data is captured and stored allowing for a postmortem, plotting statistics about ram, cpu, disk use etc throughout the pipeline 
     
 General Set-up
 *******************

@@ -115,3 +115,50 @@ pip install git+https://github.com/SaundersLab/FieldPathogenomics.git
 
 Optionally install a specific commit/branch
 
+
+
+Starting the central scheduler
+------------------------------
+
+Use the script luigid_init.sh
+
+.. code-block:: bash
+    #!/bin/bash
+    #SBATCH -N 1
+    #SBATCH -c 2
+    #SBATCH --mem 4000
+    #SBATCH -p tgac-long
+    #SBATCH --nodelist=t128n70
+
+
+    cd /tgac/workarea/collaborators/saunderslab/FP_pipeline
+    source production/bin/activate
+
+    srun luigid  --pidfile luigid/pid --logdir luigid/log --state-path luigid/state
+    
+Node the use of --nodelist to specific a host, the workers must communicate with the scheduler. The workers find out the host the scheduler is running on from luigi.cfg so these options must match
+
+Connecting to the visualiser
+----------------------------
+
+The cluster firewall prevents us from connecting directly to the node running the scheduler from outside the cluster. 
+To get around this use an SSH proxy on the login node as this bridges the two networks.
+
+1. Start the SSH proxy
++++++++++++++++++++++++
+
+.. code-block:: bash
+    $ ssh -N -D4958 username@v0558
+    
+2. Configure your computer to use the proxy
++++++++++++++++++++++++++++++++++++++++++++
+    System preferences > Network > Advanced > Proxies > SOCKS Proxy
+    
+    Set 127.0.0.1:4958 
+    
+    
+3. Open web browser
+++++++++++++++++++++
+    The hostname and port the scheduler is serving on is defined in luigi.cfg, currently I use http://128n70:8082
+    
+    

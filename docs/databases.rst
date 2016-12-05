@@ -15,7 +15,9 @@ Alignments Statistics Table
 ----------------------------
 
 This table stores the STAR alignments logs and is populated by the :py:class:`Library.AlignmentStats` task.
-Schema currently is .. code-block:: python
+Schema currently is 
+
+.. code-block:: python
 
     columns = [
         (["Library", sqlalchemy.String(64)], {}),

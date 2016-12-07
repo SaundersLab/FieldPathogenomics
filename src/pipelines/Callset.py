@@ -188,12 +188,13 @@ class PlotCallsetQC(SlurmExecutableTask, CheckTargetNonEmpty):
     def work_script(self):
         return '''#!/bin/bash
                     {python}
-                    python -m src.scripts.PlotCallsetQC {input} {output}.temp.pdf
+                    python {script_dir}/PlotCallsetQC.py {input} {output}.temp.pdf
                     
                     mv {output}.temp.pdf {output}
                 '''.format(python=python,
                            input=self.input().path,
-                           output=self.output().path)
+                           output=self.output().path,
+                           script_dir=script_dir)
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
 @inherits(GenotypeGVCF)
@@ -425,13 +426,13 @@ class GetRefSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
 @inherits(GetSyn)
 @inherits(GetRefSNPs)
 @inherits(GetINDELs)
-@inherits(VariantsToTable)
+@inherits(PlotCallsetQC)
 @inherits(VariantsEval)
 class CallsetWrapper(luigi.WrapperTask):
     def requires(self):
         yield self.clone(GetINDELs)
         yield self.clone(GetSyn)
-        yield self.clone(VariantsToTable)
+        yield self.clone(PlotCallsetQC)
         yield self.clone(VariantsEval)
         yield self.clone(GetRefSNPs)
 

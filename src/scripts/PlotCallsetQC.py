@@ -52,3 +52,5 @@ if __name__ == '__main__':
 
     for fmt in format_fields:
         plot_format(fmt, df)
+        
+    pp.close()

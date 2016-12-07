@@ -110,3 +110,33 @@ class GatherVCF(SlurmExecutableTask, CheckTargetNonEmpty):
                            output=self.output().path,
                            in_flags=  "\\\n".join([" I= "+ x.path for x in self.input()])
                            )
+
+class GatherCat(SlurmExecutableTask, CheckTargetNonEmpty):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs) 
+        # Set the SLURM request params for this task
+        self.mem = 4000
+        self.n_cpu = 1
+        self.partition = "tgac-short"
+        
+    def work_script(self):
+        return '''#!/bin/bash
+                cat {inputs} > {output}.temp
+                mv {output} {output}
+                
+                '''.format(output=self.output().path,
+                           inputs= " \\\n".join([x.path for x in self.input()])
+                           )
+
+class GatherTSV(luigi.Task, CheckTargetNonEmpty):
+    '''Gather TSV files making sure to only record the header line once'''
+    def run(self):
+        with self.output().open('w') as fout:
+            for i,inp in enumerate(self.input()):
+                with inp.open('r') as fin:
+                    lines = fin.readlines()
+                    if i == 0:
+                        fout.writelines(lines)
+                    else:
+                        fout.writelines(lines[1:])

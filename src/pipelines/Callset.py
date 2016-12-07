@@ -12,11 +12,14 @@ from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
 from src.utils import CheckTargetNonEmpty
-from src.SGUtils import ScatterBED, GatherVCF, ScatterVCF
+from src.SGUtils import ScatterBED, GatherVCF, ScatterVCF, GatherTSV
 from src.luigi.scattergather import ScatterGather
 
 picard="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
+snpeff="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4.3g/x86_64/snpEff.jar "
+snpsift="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4.3g/x86_64/SnpSift.jar "
+
 python="source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 # Ugly hack
@@ -139,6 +142,59 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
                            reference=self.reference,
                            variants="\\\n".join([" --variant "+ lib.path for lib in self.input()[1]]) )
 
+@ScatterGather(ScatterVCF, GatherTSV, N_scatter)
+@inherits(GenotypeGVCF)
+class VariantsToTable(SlurmExecutableTask, CheckTargetNonEmpty):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+    
+    def requires(self):
+        return self.clone(GenotypeGVCF)
+        
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , 'QC',  self.output_prefix + ".tsv"))
+
+    def work_script(self):
+        return '''#!/bin/bash
+                  source jre-8u92
+                  source gatk-3.6.0
+                  gatk='{gatk}'
+                  set -eo pipefail
+                  
+                  $gatk -T VariantsToTable -R {reference} --allowMissingData -F CHROM -F POS -F QD -F FS -F DP -F QUAL -GF GQ -GF RGQ -GF DP -V {input} -o {output}.temp
+                  
+                  mv {output}.temp {output}
+                  '''.format(input=self.input().path,
+                             output=self.output().path,
+                             reference=self.reference,
+                             gatk=gatk.format(mem=self.mem*self.n_cpu))
+
+@requires(VariantsToTable)
+class PlotCallsetQC(SlurmExecutableTask, CheckTargetNonEmpty):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 16000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+        
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , 'QC',  self.output_prefix + ".pdf"))
+        
+    def work_script(self):
+        return '''#!/bin/bash
+                    {python}
+                    python -m src.scripts.PlotCallsetQC {input} {output}.temp.pdf
+                    
+                    mv {output}.temp.pdf {output}
+                '''.format(python=python,
+                           input=self.input().path,
+                           output=self.output().path)
+
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
 @inherits(GenotypeGVCF)
 class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
@@ -205,16 +261,101 @@ class GetSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
         return '''#!/bin/bash
                   source jre-8u92
                   source gatk-3.6.0
+                  source vcftools-0.1.13;
                   gatk='{gatk}'
                   set -eo pipefail
                   
                   $gatk -T -T SelectVariants -V {input} -R {reference} --restrictAllelesTo BIALLELIC --selectTypeToInclude SNP --out {output}.temp.vcf.gz
                   
-                  mv {output}.temp.vcf.gz {output}
+                  # Filter out * which represents spanning deletions
+                  gzip -cd {output}.temp.vcf.gz | grep $'\t\*\t' | bgzip -c > {output}.temp2.vcf.gz
+                  
+                  rm {output}.temp.vcf.gz
+                  mv {output}.temp2.vcf.gz {output}
                   '''.format(input=self.input().path,
                              output=self.output().path,
                              reference=self.reference,
                              gatk=gatk.format(mem=self.mem*self.n_cpu))
+
+@requires(VcfToolsFilter)
+class VariantsEval(SlurmExecutableTask, CheckTargetNonEmpty):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+    
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , 'QC',  self.output_prefix + ".variant_eval"))
+
+    def work_script(self):
+        return '''#!/bin/bash
+                  source jre-8u92
+                  source gatk-3.6.0
+                  gatk='{gatk}'
+                  set -eo pipefail
+                  
+                  $gatk -T VariantEval -R {reference} --eval {input} -o {output}.temp
+                  
+                  mv {output}.temp {output}
+                  '''.format(input=self.input().path,
+                             output=self.output().path,
+                             reference=self.reference,
+                             gatk=gatk.format(mem=self.mem*self.n_cpu))
+
+@requires(GetSNPs)
+class SnpEff(SlurmExecutableTask, CheckTargetNonEmpty):
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 4000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+        
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_SNPs_ann.vcf.gz"))
+        
+    def work_script(self):
+        return '''#!/bin/bash
+                  source jre-8u92
+                  source vcftools-0.1.13;
+                  snpeff='{snpeff}'
+                  set -eo pipefail
+                  
+                  $snpeff PST130 {input} | bgzip -c > {output}.temp
+                  
+                  mv {output}.temp {output}
+                  '''.format(input=self.input().path,
+                             output=self.output().path,
+                             snpeff=snpeff.format(mem=self.mem*self.n_cpu))
+
+@requires(SnpEff)
+class GetSyn(SlurmExecutableTask, CheckTargetNonEmpty):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 4000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+        
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_SNPs_syn.vcf.gz"))
+        
+    def work_script(self):
+        return '''#!/bin/bash
+                  source jre-8u92
+                  source vcftools-0.1.13;
+                  snpsift='{snpsift}'
+                  set -eo pipefail
+                  
+                  $snpsift filter "ANN[*].EFFECT has 'synonymous_variant'" {input} | bgzip -c > {output}.temp
+                  
+                  mv {output}.temp {output}
+                  '''.format(input=self.input().path,
+                             output=self.output().path,
+                             snpsift=snpsift.format(mem=self.mem*self.n_cpu))
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
 @inherits(VcfToolsFilter)
@@ -281,13 +422,17 @@ class GetRefSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
 
 #-----------------------------------------------------------------------#
 
-@inherits(GetSNPs)
+@inherits(GetSyn)
 @inherits(GetRefSNPs)
 @inherits(GetINDELs)
+@inherits(VariantsToTable)
+@inherits(VariantsEval)
 class CallsetWrapper(luigi.WrapperTask):
     def requires(self):
         yield self.clone(GetINDELs)
-        yield self.clone(GetSNPs)
+        yield self.clone(GetSyn)
+        yield self.clone(VariantsToTable)
+        yield self.clone(VariantsEval)
         yield self.clone(GetRefSNPs)
 
 if __name__ == '__main__':

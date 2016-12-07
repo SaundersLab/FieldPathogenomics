@@ -215,7 +215,7 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
                   mkdir -p {scratch_dir}/star_temp
                   cd  {scratch_dir}/star_temp
                   
-                  STAR  --genomeDir {star_genome} --outSAMtype BAM SortedByCoordinate --runThreadN {n_cpu} --readFilesCommand gunzip -c --readFilesIn {R1} {R2}
+                  STAR  --genomeDir {star_genome} --outSAMstrandField  --outSAMtype BAM SortedByCoordinate --runThreadN {n_cpu} --readFilesCommand gunzip -c --readFilesIn {R1} {R2}
                   
                   mv {scratch_dir}/star_temp/Log.final.out {star_log}
                   mv {scratch_dir}/star_temp/Aligned.sortedByCoord.out.bam {star_bam}

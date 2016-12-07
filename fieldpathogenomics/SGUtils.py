@@ -9,7 +9,7 @@ alloc_log.setLevel(logging.DEBUG)
 import luigi
 from luigi.contrib.slurm import SlurmExecutableTask
 from luigi.util import requires, inherits
-from src.utils import CheckTargetNonEmpty
+from fieldpathogenomics.utils import CheckTargetNonEmpty
 
 picard="java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 python="source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"

@@ -5,8 +5,8 @@ import luigi.mock
 import glob
 from luigi.util import task_wraps, inherits, requires
 
-import src.SGUtils as SGUtils
-from src.luigi.scattergather import ScatterGather
+import fieldpathogenomics.SGUtils as SGUtils
+from fieldpathogenomics.luigi.scattergather import ScatterGather
 
 test_dir = os.path.split(__file__)[0]
 
@@ -32,7 +32,6 @@ class testdata(luigi.ExternalTask):
         with t.open('w') as f:
             f.write('\n'.join([str(x) for x in range(100)]))
         return t
-
 
 class TestSimple(unittest.TestCase):
     

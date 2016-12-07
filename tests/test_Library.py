@@ -3,7 +3,7 @@ import luigi
 import os
 import subprocess
 
-import src.pipelines.Library as Library
+import fieldpathogenomics.pipelines.Library as Library
 
 test_dir = os.path.split(__file__)[0]
 

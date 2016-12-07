@@ -339,7 +339,7 @@ class MarkDuplicates(CheckTargetNonEmpty,SlurmExecutableTask):
         self.partition = "tgac-short"
         
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'libraries',self.library, 'dedupped.bam'))
+        return LocalTarget(os.path.join(self.base_dir, 'libraries',self.library, self.library+'.bam'))
     
     def work_script(self):
         return '''#!/bin/bash

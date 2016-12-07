@@ -13,7 +13,7 @@ class TestPerLibPipeline(unittest.TestCase):
       PST130_9996:2000-4000
     '''
     
-    def setup(self):
+    def setUp(self):
         self.params = {
                   'star_genome':os.path.join(test_dir,'data','test_genome'),
                   'reference':os.path.join(test_dir,'data','test_reference.fasta'),

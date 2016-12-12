@@ -122,7 +122,7 @@ class SlurmExecutableTask(luigi.Task, SlurmMixin):
 
     def __init__(self, *args, **kwargs):
         super(SlurmExecutableTask, self).__init__(*args, **kwargs)
-            self.job_name = self.task_family
+        self.job_name = self.task_family
 
     def run(self):
         self._init_tmp()            

@@ -11,7 +11,7 @@ alloc_log.setLevel(logging.DEBUG)
 
 import luigi
 from luigi.contrib import sqla
-from fieldpathogenomics.slurm import SlurmExecutableTask
+from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
@@ -339,8 +339,7 @@ class MarkDuplicates(CheckTargetNonEmpty,SlurmExecutableTask):
         self.partition = "tgac-short"
         
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'libraries',self.library, self.library+'.bam'))
-    
+        return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, self.library + '.bam'))    
     def work_script(self):
         return '''#!/bin/bash
                source jre-8u92

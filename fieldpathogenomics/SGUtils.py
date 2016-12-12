@@ -7,7 +7,7 @@ alloc_log = logging.getLogger('alloc_log')
 alloc_log.setLevel(logging.DEBUG)
 
 import luigi
-from fieldpathogenomics.slurm import SlurmExecutableTask
+from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
 from luigi.util import requires, inherits
 from fieldpathogenomics.utils import CheckTargetNonEmpty
 

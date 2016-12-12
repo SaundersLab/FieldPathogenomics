@@ -278,6 +278,40 @@ class GetSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
                              reference=self.reference,
                              gatk=gatk.format(mem=self.mem*self.n_cpu))
 
+
+@inherits(GetSNPs)
+class VCFtoHDF5(SlurmExecutableTask):
+    def __init__(self):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 16000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+    
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix , self.output_prefix + "_SNPs.hd5"))
+    
+    def work_script(self):
+        self.temp1 = TemporaryFile()
+        cache_dir = os.path.join(self.script_dir, self.output_prefix, 'SNPs.hd5.cache')
+        os.makedirs(cache_dir)
+        return '''#!/bin/bash 
+                {python}
+                set -eo pipefail
+                gzip -cd {input} > {temp1}
+                
+                vcf2npy --vcf {temp1} --array-type calldata_2d --output-dir {cache_dir} --compress
+                vcf2npy --vcf {temp1} --array-type variants --output-dir {cache_dir} --compress
+                
+                vcfnpy2hdf5 --vcf {temp1} --input-dir {cache_dir} --ouput {output}.temp
+                
+                mv {output}.temp {output}
+                '''.format(python=python,
+                           input=self.input().path,
+                           temp1=self.temp1.path+'.vcf',
+                           cache_dir=cache_dir,
+                           output=self.output().path)
+                
 @requires(VcfToolsFilter)
 class VariantsEval(SlurmExecutableTask, CheckTargetNonEmpty):
     def __init__(self, *args, **kwargs):

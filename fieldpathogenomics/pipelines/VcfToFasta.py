@@ -4,7 +4,7 @@ import os, sys, json, shutil
 import logging 
 
 import luigi
-from luigi.contrib.slurm import SlurmExecutableTask
+from fieldpathogenomics.slurm import SlurmExecutableTask
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile

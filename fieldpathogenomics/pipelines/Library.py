@@ -11,7 +11,7 @@ alloc_log.setLevel(logging.DEBUG)
 
 import luigi
 from luigi.contrib import sqla
-from luigi.contrib.slurm import SlurmExecutableTask
+from fieldpathogenomics.slurm import SlurmExecutableTask
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile

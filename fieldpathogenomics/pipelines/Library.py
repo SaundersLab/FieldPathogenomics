@@ -373,7 +373,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
     
     def output(self):
         if self.snp_db == '':
-            return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'dedupped.bam'))
+            return self.input()
         else:
             return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'recalibrated.bam'))
     

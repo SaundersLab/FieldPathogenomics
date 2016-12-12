@@ -22,22 +22,16 @@ class SlurmMixin(object):
     
      '''
     
-    n_cpu = luigi.IntParameter(default=1, significant=False)
-    mem = luigi.IntParameter(default=1000, significant=False)
-    partition = luigi.Parameter(default='tgac-medium', significant=False)
-    run_locally = luigi.BoolParameter(significant=False, description="run locally instead of on the cluster")
-    rm_tmp = luigi.BoolParameter(default=True, significant=False)
-
     def _init_tmp(self):
         # Set up temp folder in shared directory
         base_tmp_dir = tempfile.gettempdir()
         self.tmp_dir = os.path.join(base_tmp_dir, self.task_id)
         logger.info("Tmp dir: %s", self.tmp_dir)
-        os.makedirs(self.tmp_dir)
+        os.makedirs(self.tmp_dir, exist_ok=True)
 
     def clear_tmp(self):
         try:
-            if (self.tmp_dir and os.path.exists(self.tmp_dir) and self.rm_tmp):
+            if (os.path.exists(self.tmp_dir) and self.rm_tmp):
                 logger.debug('Removing temporary directory %s' % self.tmp_dir)
                 subprocess.call(["rm", "-rf", self.tmp_dir])
         except:
@@ -88,27 +82,7 @@ class SlurmMixin(object):
                 ret +="\nSLURM out " + self.task_id + ": " + "None"
             
         return ret
-    
-    def on_failure(self, exception):
-        err = self._fetch_task_failures()
-        self.clear_tmp()
-        logger.info(err)
-        super_retval = super().on_failure(exception)
-        if super_retval is not None:
-            return err + "\n" + super_retval
-        else:
-            return err
-
-    def on_success(self):
-        err = self._fetch_task_failures()
-        self.clear_tmp()
-        logger.info(err)
-        super_retval = super().on_success()
-        if super_retval is not None:
-            return err + "\n" + super_retval
-        else:
-            return err
-    
+        
     def scancel(self):
         if self.alloc is not None:
             subprocess.run("scancel {0}".format(self.alloc), shell=True, check=False)
@@ -119,7 +93,12 @@ class SlurmExecutableTask(luigi.Task, SlurmMixin):
         Override ``work_script()`` to return a shell script file as a string to run
 
     """
-
+    n_cpu = luigi.IntParameter(default=1, significant=False)
+    mem = luigi.IntParameter(default=1000, significant=False)
+    partition = luigi.Parameter(default='tgac-medium', significant=False)
+    run_locally = luigi.BoolParameter(significant=False, description="run locally instead of on the cluster")
+    rm_tmp = luigi.BoolParameter(default=True, significant=False)
+    
     def __init__(self, *args, **kwargs):
         super(SlurmExecutableTask, self).__init__(*args, **kwargs)
         self.job_name = self.task_family
@@ -150,7 +129,26 @@ class SlurmExecutableTask(luigi.Task, SlurmMixin):
             finally:
                 # Always be sure to free the slurm allocation
                 self.scancel()
+    def on_failure(self, exception):
+        err = self._fetch_task_failures()
+        self.clear_tmp()
+        logger.info(err)
+        super_retval = super().on_failure(exception)
+        if super_retval is not None:
+            return err + "\n" + super_retval
+        else:
+            return err
 
+    def on_success(self):
+        err = self._fetch_task_failures()
+        self.clear_tmp()
+        logger.info(err)
+        super_retval = super().on_success()
+        if super_retval is not None:
+            return err + "\n" + super_retval
+        else:
+            return err
+    
     def work_script(self):
         """Override this an make it return the shell script to run"""
         pass

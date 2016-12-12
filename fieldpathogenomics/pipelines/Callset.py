@@ -269,7 +269,7 @@ class GetSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
                   $gatk -T -T SelectVariants -V {input} -R {reference} --restrictAllelesTo BIALLELIC --selectTypeToInclude SNP --out {output}.temp.vcf.gz
                   
                   # Filter out * which represents spanning deletions
-                  gzip -cd {output}.temp.vcf.gz | grep $'\t\*\t' | bgzip -c > {output}.temp2.vcf.gz
+                  gzip -cd {output}.temp.vcf.gz | grep -v $'\t\*\t' | bgzip -c > {output}.temp2.vcf.gz
                   
                   rm {output}.temp.vcf.gz
                   mv {output}.temp2.vcf.gz {output}
@@ -277,7 +277,6 @@ class GetSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
                              output=self.output().path,
                              reference=self.reference,
                              gatk=gatk.format(mem=self.mem*self.n_cpu))
-
 
 @inherits(GetSNPs)
 class VCFtoHDF5(SlurmExecutableTask):
@@ -311,7 +310,7 @@ class VCFtoHDF5(SlurmExecutableTask):
                            temp1=self.temp1.path+'.vcf',
                            cache_dir=cache_dir,
                            output=self.output().path)
-                
+
 @requires(VcfToolsFilter)
 class VariantsEval(SlurmExecutableTask, CheckTargetNonEmpty):
     def __init__(self, *args, **kwargs):

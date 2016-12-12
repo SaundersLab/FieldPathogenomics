@@ -39,6 +39,8 @@ class ScatterVCF(SlurmExecutableTask):
         
         return '''#!/bin/bash -e
                 source vcftools-0.1.13;
+                set -euo pipefail
+                
                 {python}
                 mkdir -p {dir}/temp
                 

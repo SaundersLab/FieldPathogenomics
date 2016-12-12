@@ -108,7 +108,10 @@ class SlurmMixin(object):
             return err + "\n" + super_retval
         else:
             return err
-            
+    
+    def scancel(self):
+        if self.alloc is not None:
+            subprocess.run("scancel {0}".format(self.alloc), shell=True, check=False)
 class SlurmExecutableTask(luigi.Task, SlurmMixin):
 
     """
@@ -146,8 +149,7 @@ class SlurmExecutableTask(luigi.Task, SlurmMixin):
                 
             finally:
                 # Always be sure to free the slurm allocation
-                if self.alloc is not None:
-                    subprocess.run("scancel {0}".format(self.alloc), shell=True, check=False)
+                self.scancel()
 
     def work_script(self):
         """Override this an make it return the shell script to run"""

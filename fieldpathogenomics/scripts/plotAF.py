@@ -2,8 +2,9 @@
 
 import pandas as pd
 import numpy as np
-import sys, re
-import matplotlib 
+import sys
+import re
+import matplotlib
 matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 
@@ -19,11 +20,11 @@ ad_col_name = tsv.filter(regex='\S+AD').columns[0]
 lib_name = re.match("(\S+)\.AD", ad_col_name).groups()[0]
 
 counts = [np.sort([float(y) for y in x.split(',')])[::-1] for x in tsv[ad_col_name]]
-freqs = [x/np.sum(x) for x in counts]
+freqs = [x / np.sum(x) for x in counts]
 df = pd.DataFrame(freqs)
-df[df==0] = float('nan')
+df[df == 0] = float('nan')
 
-ax_list = df.hist(sharex=True, sharey=True, range=(0,1), bins=20)
+ax_list = df.hist(sharex=True, sharey=True, range=(0, 1), bins=20)
 fig = ax_list.flat[0].get_figure()
 plt.gcf().suptitle(lib_name,  fontsize=20)
 plt.gcf().text(0.5, 0.04, 'Allele frequency', ha='center')

@@ -1,6 +1,7 @@
 import pandas as pd
 import sys
 import re
+import numpy as np
 
 import matplotlib
 matplotlib.use('pdf')

@@ -5,11 +5,6 @@ import shutil
 import time
 import sqlalchemy
 
-import logging
-logger = logging.getLogger('luigi-interface')
-alloc_log = logging.getLogger('alloc_log')
-alloc_log.setLevel(logging.DEBUG)
-
 import luigi
 from luigi.contrib import sqla
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
@@ -19,6 +14,11 @@ from luigi.file import TemporaryFile
 
 from fieldpathogenomics.utils import CheckTargetNonEmpty
 import fieldpathogenomics.utils as utils
+
+import logging
+logger = logging.getLogger('luigi-interface')
+alloc_log = logging.getLogger('alloc_log')
+alloc_log.setLevel(logging.DEBUG)
 
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
@@ -73,12 +73,12 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
                 LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R2.fastq.gz"))]
 
     def work_script(self):
-        return '''#!/bin/bash -e 
+        return '''#!/bin/bash -e
                   set -euo pipefail
-                  
+
                   find {read_dir} -name "*{library}*_R1.fastq.gz" -type f  -print | sort | xargs cat  > {R1}.temp
                   find {read_dir} -name "*{library}*_R2.fastq.gz" -type f  -print | sort | xargs cat  > {R2}.temp
-                  
+
                   mv {R1}.temp {R1}
                   mv {R2}.temp {R2}
                  '''.format(read_dir=self.read_dir,
@@ -106,19 +106,19 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
                source jre-8u92
                source trimmomatic-0.30
                set -euo pipefail
-               
+
                cd {scratch_dir}
                trimmomatic='{trimmomatic}'
                $trimmomatic PE -threads 8 {R1_in} {R2_in} -baseout temp.fastq.gz  ILLUMINACLIP:{adapters}:2:30:10:4 SLIDINGWINDOW:4:20 MINLEN:50
-               
+
                #cat temp_1P.fastq.gz >> temp_1U.fastq.gz
                #rm temp_1P.fastq.gz
                #cat temp_2P.fastq.gz >> temp_2U.fastq.gz
                #rm temp_2P.fastq.gz
-               
+
                mv temp_1P.fastq.gz {R1_out}
                mv temp_2P.fastq.gz {R2_out}
-               
+
                 '''.format(scratch_dir=os.path.join(self.scratch_dir, self.library),
                            trimmomatic=trimmomatic.format(
                                mem=self.mem * self.n_cpu),
@@ -154,13 +154,13 @@ class FastxQC(SlurmExecutableTask):
         return '''#!/bin/bash
         source fastx_toolkit-0.0.13.2
         set -euo pipefail
-        
+
         gzip -cd {R1_in} | fastx_quality_stats -o {stats_R1} -Q33
         gzip -cd {R2_in} | fastx_quality_stats -o {stats_R2} -Q33
 
         fastq_quality_boxplot_graph.sh -i {stats_R1} -o {boxplot_R1}
         fastq_quality_boxplot_graph.sh -i {stats_R2} -o {boxplot_R2}
-                
+
         fastx_nucleotide_distribution_graph.sh -i {stats_R1} -o {nt_dist_R1}
         fastx_nucleotide_distribution_graph.sh -i {stats_R2} -o {nt_dist_R2}
 
@@ -193,10 +193,10 @@ class FastxTrimmer(CheckTargetNonEmpty, SlurmExecutableTask):
         return '''#!/bin/bash
         source fastx_toolkit-0.0.13.2
         set -euo pipefail
-        
+
         gzip -cd {R1_in} | fastx_trimmer -f14 -Q33 | gzip > {R1_out}.temp ;
         gzip -cd {R2_in} | fastx_trimmer -f14 -Q33 | gzip > {R2_out}.temp ;
-        
+
         mv {R1_out}.temp {R1_out}
         mv {R2_out}.temp {R2_out}
         '''.format(R1_in=self.input()[0].path,
@@ -227,15 +227,15 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
         return '''#!/bin/bash
                   source star-2.5.0a
                   set -euo pipefail
-                  
+
                   mkdir -p {scratch_dir}/star_temp
                   cd  {scratch_dir}/star_temp
-                  
+
                   STAR  --genomeDir {star_genome} --outSAMstrandField intronMotif  --outSAMtype BAM SortedByCoordinate --runThreadN {n_cpu} --readFilesCommand gunzip -c --readFilesIn {R1} {R2}
-                  
+
                   mv {scratch_dir}/star_temp/Log.final.out {star_log}
                   mv {scratch_dir}/star_temp/Aligned.sortedByCoord.out.bam {star_bam}
-                  
+
                   '''.format(star_bam=self.output()['star_bam'].path,
                              star_log=self.output()['star_log'].path,
                              scratch_dir=os.path.join(
@@ -314,9 +314,9 @@ class CleanSam(CheckTargetNonEmpty, SlurmExecutableTask):
                source picardtools-2.1.1
                picard='{picard}'
                set -euo pipefail
-               
+
                $picard CleanSam VERBOSITY=ERROR QUIET=true I={input} O={output}.temp
-               
+
                mv {output}.temp {output}
                 '''.format(input=self.input()['star_bam'].path,
                            output=self.output().path,
@@ -341,12 +341,12 @@ class AddReadGroups(CheckTargetNonEmpty, SlurmExecutableTask):
         return '''#!/bin/bash
                source jre-8u92
                source picardtools-2.1.1
-               picard='{picard}' 
+               picard='{picard}'
                set -euo pipefail
-               
+
                $picard AddOrReplaceReadGroups VERBOSITY=ERROR QUIET=true I={input} O={output}.temp SO=coordinate RGID=Star RGLB={lib} RGPL=Ilumina RGPU=Ilumina RGSM={lib}
-               
-               mv {output}.temp {output}                
+
+               mv {output}.temp {output}
                 '''.format(input=self.input().path,
                            output=self.output().path,
                            lib=self.library,
@@ -373,9 +373,9 @@ class MarkDuplicates(CheckTargetNonEmpty, SlurmExecutableTask):
                source picardtools-2.1.1
                picard='{picard}'
                set -euo pipefail
-               
+
                $picard MarkDuplicates VERBOSITY=ERROR QUIET=true I={input} O={output}.temp CREATE_INDEX=false VALIDATION_STRINGENCY=SILENT M=/dev/null
-               
+
                mv {output}.temp {output}
                 '''.format(input=self.input().path,
                            output=self.output().path,
@@ -388,7 +388,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
     as a ground truth we bootstrap this by first running the pipeline without
     BQSR then running again using the best SNPs of the first run.
 
-    This is achieved by conditionally overriding run() on whether a snp_db is given 
+    This is achieved by conditionally overriding run() on whether a snp_db is given
     '''
     snp_db = luigi.Parameter(default='')
 
@@ -434,10 +434,10 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
                   source gatk-3.6.0
                   gatk='{gatk}'
                   set -euo pipefail
-                  
+
                   $gatk -T BaseRecalibrator  -R {reference}  -I {input}  -knownSites {snp_db}  -o {recal}
                   $gatk -T PrintReads -R {reference} -I {input} -BQSR {recal} -o {output}.temp
-                  
+
                   mv {output}.temp {output}
                 '''.format(gatk=gatk.format(mem=self.mem * self.n_cpu),
                            input=self.input().path,
@@ -468,10 +468,10 @@ class SplitNCigarReads(CheckTargetNonEmpty, SlurmExecutableTask):
                gatk='{gatk}'
                picard='{picard}'
                set -euo pipefail
-               
+
                $picard BuildBamIndex VERBOSITY=ERROR QUIET=true I={input}
                $gatk -T SplitNCigarReads --logging_level ERROR -R {reference} -I {input} -o {output}.temp -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
-               
+
                mv {output}.temp.bai {output}.bai
                mv {output}.temp {output}
                 '''.format(input=self.input().path,
@@ -501,9 +501,9 @@ class HaplotypeCaller(CheckTargetNonEmpty, SlurmExecutableTask):
                 source gatk-3.6.0
                 gatk='{gatk}'
                 set -euo pipefail
-                
+
                 $gatk -T HaplotypeCaller  -R {reference} -I {input} -dontUseSoftClippedBases --variant_index_type LINEAR --variant_index_parameter 128000 --emitRefConfidence GVCF -o {output}.temp
-                
+
                 mv {output}.temp {output}
         '''.format(input=self.input().path,
                    output=self.output().path,
@@ -534,7 +534,7 @@ class PlotAlleleFreq(SlurmExecutableTask):
                 source gatk-3.6.0
                 gatk='{gatk}'
                 set -euo pipefail
-                
+
                 $gatk -T VariantsToTable -R {reference} -AMD -V {input} -F CHROM -F POS -F REF -F ALT -F DP -GF AD  --out {temp1}
                 grep -ve "NA" <  {temp1}  > {temp2}
 
@@ -578,18 +578,16 @@ class LibraryBatchWrapper(luigi.WrapperTask):
     '''Wrapper task to execute the per library part of the pipline on all
         libraries in :param list lib_list:'''
     lib_list = luigi.ListParameter()
+    # This is a bit of a hack, it allows us to pass parameters to LibraryBatchWrapper and have them propagate
+    # down to all calls to PerLibPipeline.
     library = None
 
     def requires(self):
         for lib in self.lib_list:
             yield self.clone_parent(library=lib.rstrip())
-# This is a bit of a hack, it allows us to pass parameters to LibraryBatchWrapper and have them propagate
-# down to all calls to PerLibPipeline.
-LibraryBatchWrapper.library = None
 
 
-#-----------------------------------------------------------------------#
-
+# ----------------------------------------------------------------------- #
 
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"

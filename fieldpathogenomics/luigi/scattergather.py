@@ -35,7 +35,7 @@ class ScatterGather():
         def run(self):
             with self.input().open() as fin:
                 inp = fin.readlines()
-            perfile = math.ceil(len(inp)/len(self.output()))        
+            perfile = math.ceil(len(inp)/len(self.output()))
             for i,out in enumerate(self.output()):
                 with out.open('w') as fout:
                     fout.writelines(inp[i*perfile:(i+1)*perfile])
@@ -49,7 +49,7 @@ class ScatterGather():
                         fout.write(fin.read())
 
 
-    @ScatterGather(scatter, gather, 10) 
+    @ScatterGather(scatter, gather, 10)
     class ToBeScattered(luigi.Task):
         def run(self):
             with self.input().open('r') as fin:

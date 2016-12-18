@@ -3,10 +3,6 @@ import sys
 import json
 import time
 import math
-import logging
-logger = logging.getLogger('luigi-interface')
-alloc_log = logging.getLogger('alloc_log')
-alloc_log.setLevel(logging.DEBUG)
 
 import luigi
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
@@ -17,6 +13,11 @@ from luigi.file import TemporaryFile
 from fieldpathogenomics.utils import CheckTargetNonEmpty
 from fieldpathogenomics.SGUtils import ScatterBED, GatherVCF, ScatterVCF, GatherTSV
 from fieldpathogenomics.luigi.scattergather import ScatterGather
+
+import logging
+logger = logging.getLogger('luigi-interface')
+alloc_log = logging.getLogger('alloc_log')
+alloc_log.setLevel(logging.DEBUG)
 
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
@@ -98,10 +99,10 @@ class CombineGVCFs(SlurmExecutableTask, CheckTargetNonEmpty):
                 source jre-8u92
                 source gatk-3.6.0
                 gatk='{gatk}'
-                
+
                 set -eo pipefail
                 $gatk -T CombineGVCFs -R {reference} -o {output}.temp {variants}
-                
+
                 mv {output}.temp {output}
                 '''.format(output=self.output().path,
                            gatk=gatk.format(mem=self.mem * self.n_cpu),
@@ -145,10 +146,10 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
                 source jre-8u92
                 source gatk-3.6.0
                 gatk='{gatk}'
-                
+
                 set -eo pipefail
                 $gatk -T GenotypeGVCFs -R {reference} -L {intervals} -o {output}.temp.vcf.gz --includeNonVariantSites {variants}
-                
+
                 mv {output}.temp.vcf.gz {output}
                 '''.format(output=self.output().path,
                            intervals=self.input()[0].path,
@@ -180,9 +181,18 @@ class VariantsToTable(SlurmExecutableTask, CheckTargetNonEmpty):
                   source gatk-3.6.0
                   gatk='{gatk}'
                   set -eo pipefail
-                  
-                  $gatk -T VariantsToTable -R {reference} --allowMissingData -F CHROM -F POS -F QD -F FS -F DP -F QUAL -GF GQ -GF RGQ -GF DP -V {input} -o {output}.temp
-                  
+
+                  $gatk -T VariantsToTable -R {reference} --allowMissingData -F CHROM \
+                                                                             -F POS \
+                                                                             -F QD \
+                                                                             -F FS \
+                                                                             -F DP \
+                                                                             -F QUAL \
+                                                                             -GF GQ \
+                                                                             -GF RGQ \
+                                                                             -GF DP \
+                                                                             -V {input} -o {output}.temp
+
                   mv {output}.temp {output}
                   '''.format(input=self.input().path,
                              output=self.output().path,
@@ -207,7 +217,7 @@ class PlotCallsetQC(SlurmExecutableTask, CheckTargetNonEmpty):
         return '''#!/bin/bash
                     {python}
                     python {script_dir}/PlotCallsetQC.py {input} {output}.temp.pdf
-                    
+
                     mv {output}.temp.pdf {output}
                 '''.format(python=python,
                            input=self.input().path,
@@ -244,11 +254,11 @@ class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
                 source vcftools-0.1.13;
                 source bcftools-1.3.1;
                 set -eo pipefail
-                
+
                 bcftools view --apply-filters . {input} -o {temp1} -O z --threads 1
                 bcftools filter {temp1} -e "FMT/RGQ < {GQ} || FMT/GQ < {GQ} || QD < {QD} || FS > {FS}" --set-GTs . -o {temp2} -O z --threads 1
                 vcftools --gzvcf {temp2} --recode --max-missing 0.000001 --stdout --bed {mask} | bgzip -c > {output}.temp
-                
+
                 mv {output}.temp {output}
                 tabix -p vcf {output}
                 '''.format(input=self.input().path,
@@ -286,12 +296,14 @@ class GetSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
                   source vcftools-0.1.13;
                   gatk='{gatk}'
                   set -eo pipefail
-                  
-                  $gatk -T -T SelectVariants -V {input} -R {reference} --restrictAllelesTo BIALLELIC --selectTypeToInclude SNP --out {output}.temp.vcf.gz
-                  
+
+                  $gatk -T -T SelectVariants -V {input} -R {reference} --restrictAllelesTo BIALLELIC \
+                                                                       --selectTypeToInclude SNP \
+                                                                       --out {output}.temp.vcf.gz
+
                   # Filter out * which represents spanning deletions
                   gzip -cd {output}.temp.vcf.gz | grep -v $'\t\*\t' | bgzip -c > {output}.temp2.vcf.gz
-                  
+
                   rm {output}.temp.vcf.gz
                   mv {output}.temp2.vcf.gz {output}
                   '''.format(input=self.input().path,
@@ -318,16 +330,16 @@ class VCFtoHDF5(SlurmExecutableTask):
         cache_dir = os.path.join(
             self.script_dir, self.output_prefix, 'SNPs.hd5.cache')
         os.makedirs(cache_dir)
-        return '''#!/bin/bash 
+        return '''#!/bin/bash
                 {python}
                 set -eo pipefail
                 gzip -cd {input} > {temp1}
-                
+
                 vcf2npy --vcf {temp1} --array-type calldata_2d --output-dir {cache_dir} --compress
                 vcf2npy --vcf {temp1} --array-type variants --output-dir {cache_dir} --compress
-                
+
                 vcfnpy2hdf5 --vcf {temp1} --input-dir {cache_dir} --ouput {output}.temp
-                
+
                 mv {output}.temp {output}
                 '''.format(python=python,
                            input=self.input().path,
@@ -355,9 +367,9 @@ class VariantsEval(SlurmExecutableTask, CheckTargetNonEmpty):
                   source gatk-3.6.0
                   gatk='{gatk}'
                   set -eo pipefail
-                  
+
                   $gatk -T VariantEval -R {reference} --eval {input} -o {output}.temp
-                  
+
                   mv {output}.temp {output}
                   '''.format(input=self.input().path,
                              output=self.output().path,
@@ -384,9 +396,9 @@ class SnpEff(SlurmExecutableTask, CheckTargetNonEmpty):
                   source vcftools-0.1.13;
                   snpeff='{snpeff}'
                   set -eo pipefail
-                  
+
                   $snpeff PST130 {input} | bgzip -c > {output}.temp
-                  
+
                   mv {output}.temp {output}
                   '''.format(input=self.input().path,
                              output=self.output().path,
@@ -412,9 +424,9 @@ class GetSyn(SlurmExecutableTask, CheckTargetNonEmpty):
                   source vcftools-0.1.13;
                   snpsift='{snpsift}'
                   set -eo pipefail
-                  
+
                   $snpsift filter "ANN[*].EFFECT has 'synonymous_variant'" {input} | bgzip -c > {output}.temp
-                  
+
                   mv {output}.temp {output}
                   '''.format(input=self.input().path,
                              output=self.output().path,
@@ -445,9 +457,11 @@ class GetINDELs(SlurmExecutableTask, CheckTargetNonEmpty):
                   source gatk-3.6.0
                   gatk='{gatk}'
                   set -eo pipefail
-                  
-                  $gatk -T -T SelectVariants -V {input} -R {reference} --selectTypeToInclude MNP  --selectTypeToInclude MIXED   --out {output}.temp.vcf.gz
-                  
+
+                  $gatk -T -T SelectVariants -V {input} -R {reference} --selectTypeToInclude MNP \
+                                                                       --selectTypeToInclude MIXED \
+                                                                       --out {output}.temp.vcf.gz
+
                   mv {output}.temp.vcf.gz {output}
                   '''.format(input=self.input().path,
                              output=self.output().path,
@@ -479,16 +493,21 @@ class GetRefSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
                   source gatk-3.6.0
                   gatk='{gatk}'
                   set -eo pipefail
-                  
-                  $gatk -T -T SelectVariants -V {input} -R {reference} --restrictAllelesTo BIALLELIC --selectTypeToInclude SYMBOLIC --selectTypeToInclude NO_VARIATION  --selectTypeToInclude SNP  --out {output}.temp.vcf.gz
-                  
+
+                  $gatk -T -T SelectVariants -V {input} -R {reference} \
+                        --restrictAllelesTo BIALLELIC \
+                        --selectTypeToInclude SYMBOLIC \
+                        --selectTypeToInclude NO_VARIATION \
+                        --selectTypeToInclude SNP \
+                        --out {output}.temp.vcf.gz
+
                   mv {output}.temp.vcf.gz {output}
                   '''.format(input=self.input().path,
                              output=self.output().path,
                              reference=self.reference,
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 
-#-----------------------------------------------------------------------#
+# ----------------------------------------------------------------------- #
 
 
 @inherits(GetSyn)
@@ -504,6 +523,7 @@ class CallsetWrapper(luigi.WrapperTask):
         yield self.clone(PlotCallsetQC)
         yield self.clone(VariantsEval)
         yield self.clone(GetRefSNPs)
+
 
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"

@@ -18,7 +18,7 @@ class SlurmMixin(object):
 
      Parameters:
 
-    - n_cpu: Number of CPUs to allocate for the Task. 
+    - n_cpu: Number of CPUs to allocate for the Task.
     - mem: Amount of memory to require MB
     - partition: slurm partition to submit to
     - run_locally: Run locally instead of on the cluster.
@@ -62,16 +62,16 @@ class SlurmMixin(object):
         ret = subprocess.run(srun, shell=True, check=True)
 
     def _slaunch(self, launch):
-        return "salloc --quiet -N 1 -c {n_cpu} -n 1 --mem {total_mem} -p {partition} -J {job_name}  srun  -n 1 -c {n_cpu} --mem-per-cpu {mem} {launch} > {outfile} 2> {errfile}".format(n_cpu=self.n_cpu,
-                                                                                                                                                                                        mem=self.mem, partition=self.partition, job_name=self.job_name, launch=launch, outfile=self.outfile, errfile=self.errfile)
+        return "salloc --quiet -N 1 -c {n_cpu} -n 1 --mem {total_mem} -p {partition} -J {job_name}  srun  -n 1 -c {n_cpu} --mem-per-cpu {mem} {launch} > {outfile} 2> {errfile}".format(
+                n_cpu=self.n_cpu,mem=self.mem, partition=self.partition, job_name=self.job_name, launch=launch, outfile=self.outfile, errfile=self.errfile)
 
     def _fetch_task_failures(self):
         '''Handles reading either the local CompletedProcess or the SLURM log files'''
         ret = ''
         if self.run_locally:
-            if not self.completedprocess.stdout is None:
+            if self.completedprocess.stdout is not None:
                 ret += self.completedprocess.stdout.replace("\n", "\nstdout " + self.task_id + ": ")
-            if not self.completedprocess.stderr is None:
+            if self.completedprocess.stderr is not None:
                 ret += self.completedprocess.stderr.replace("\n", "\nstdout " + self.task_id + ": ")
         else:
             try:
@@ -161,5 +161,5 @@ class SlurmExecutableTask(luigi.Task, SlurmMixin):
             return err
 
     def work_script(self):
-    """Override this an make it return the shell script to run"""
+        """Override this an make it return the shell script to run"""
         pass

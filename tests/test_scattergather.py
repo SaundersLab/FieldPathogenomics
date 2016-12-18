@@ -4,9 +4,7 @@ import os
 import luigi
 import luigi.mock
 import glob
-from luigi.util import task_wraps, inherits, requires
 
-import fieldpathogenomics.SGUtils as SGUtils
 from fieldpathogenomics.luigi.scattergather import ScatterGather
 
 test_dir = os.path.split(__file__)[0]

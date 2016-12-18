@@ -8,7 +8,6 @@ alloc_log.setLevel(logging.DEBUG)
 
 import luigi
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
-from luigi.util import requires, inherits
 from fieldpathogenomics.utils import CheckTargetNonEmpty
 
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"

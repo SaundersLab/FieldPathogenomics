@@ -10,9 +10,8 @@ import luigi
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
 from luigi.util import requires, inherits
 from luigi import LocalTarget
-from luigi.file import TemporaryFile
 
-from SNP_calling import GetRefSNPSs, picard
+from SNP_calling import picard
 
 
 class GetVCF(luigi.ExternalTask):

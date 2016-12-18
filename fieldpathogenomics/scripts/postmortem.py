@@ -6,7 +6,6 @@ import re
 import io
 import math
 import subprocess
-from collections import namedtuple
 import pandas as pd
 
 import matplotlib

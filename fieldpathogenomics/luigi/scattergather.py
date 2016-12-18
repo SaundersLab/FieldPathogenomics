@@ -1,12 +1,7 @@
 
 import luigi
 from luigi import Target, LocalTarget
-from luigi.util import task_wraps, inherits, requires
-from luigi.task import getpaths
-import six
-import os
-import math
-import copy
+from luigi.util import inherits
 
 
 def indextarget(struct, idx):
@@ -106,7 +101,7 @@ class ScatterGather():
             def input(self):
                 inp = super().input()
                 scattered = inp[0][self.SG_index]
-                return [inp[0][self.SG_index]] + inp[1:] if isinstance(super().requires(), list) else inp[0][self.SG_index]
+                return [scattered] + inp[1:] if isinstance(super().requires(), list) else scattered
 
             def output(self):
                 return indextarget(super().output(), self.SG_index)

@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-import os
 import Bio.SeqIO
-import numpy as np
 
 
 ref_file = sys.argv[1]

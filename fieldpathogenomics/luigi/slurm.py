@@ -161,5 +161,5 @@ class SlurmExecutableTask(luigi.Task, SlurmMixin):
             return err
 
     def work_script(self):
-        """Override this an make it return the shell script to run"""
+    """Override this an make it return the shell script to run"""
         pass

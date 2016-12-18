@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
 import sys
-import os
-import io
 import subprocess
 import itertools
 

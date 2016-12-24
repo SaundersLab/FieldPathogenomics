@@ -28,7 +28,7 @@ class GetVCF(luigi.ExternalTask):
 
 @requires(GetVCF)
 class ConvertToBCF(SlurmExecutableTask):
-    '''Use bcftools view to convert the vcf to bcf, its worth doing this conversion 
+    '''Use bcftools view to convert the vcf to bcf, its worth doing this conversion
      as the bcf formatted file is much faster for separating the samples than the vcf'''
 
     def __init__(self, *args, **kwargs):
@@ -70,14 +70,14 @@ class GetSingleSample(SlurmExecutableTask):
         return '''#!/bin/bash -e
                 source bcftools-1.3.1;
                 source vcftools-0.1.13;
-               source jre-8u92
-               source picardtools-2.1.1
-               picard='{picard}'
-                
-                bcftools view {input} -o {vcf} -O z -s {library} --exclude-uncalled --no-update 
+                source jre-8u92
+                source picardtools-2.1.1
+                picard='{picard}'
+
+                bcftools view {input} -o {vcf} -O z -s {library} --exclude-uncalled --no-update
                 tabix -p vcf {vcf}
                 $picard IntervalListTools I={vcf} INVERT=true O=/dev/stdout | $picard IntervalListToBed I=/dev/stdin O={mask}
-                
+
                 '''.format(picard=picard.format(mem=self.mem),
                            input=self.input().path,
                            vcf=self.output()[0].path,
@@ -107,13 +107,13 @@ class BCFtoolsConsensus(SlurmExecutableTask):
         ct_flag = "--" + self.consensus_type if self.consensus_type == 'iupac-codes' else "-" + \
             self.consensus_type
         return '''#!/bin/bash -e
-        
-                source bcftools-1.3.1;                
+
+                source bcftools-1.3.1;
                 bcftools consensus {vcf} -f {reference} -s {library} -m {mask} {consensus_type} > {output}
-                
+
                 source samtools-1.3;
                 samtools faidx {output}
-                
+
                 '''.format(vcf=self.input()[0].path,
                            mask=self.input()[1].path,
                            reference=self.reference,
@@ -140,9 +140,9 @@ class GFFread(SlurmExecutableTask):
     def work_script(self):
         return '''#!/bin/bash -e
                 source gffread-0.9.8;
-                
-                gffread {gff} -g {input} -w /dev/stdout | fold -w 60 > {output} 
-                
+
+                gffread {gff} -g {input} -w /dev/stdout | fold -w 60 > {output}
+
                 '''.format(gff=self.gff,
                            input=self.input().path,
                            output=self.output().path)

@@ -1,14 +1,15 @@
 
 import os
 import math
-import logging
-logger = logging.getLogger('luigi-interface')
-alloc_log = logging.getLogger('alloc_log')
-alloc_log.setLevel(logging.DEBUG)
 
 import luigi
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
 from fieldpathogenomics.utils import CheckTargetNonEmpty
+
+import logging
+logger = logging.getLogger('luigi-interface')
+alloc_log = logging.getLogger('alloc_log')
+alloc_log.setLevel(logging.DEBUG)
 
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
@@ -40,17 +41,17 @@ class ScatterVCF(SlurmExecutableTask):
         return '''#!/bin/bash -e
                 source vcftools-0.1.13;
                 set -euo pipefail
-                
+
                 {python}
                 mkdir -p {dir}/temp
-                
+
                 bgzip -cd {input} | python {script_dir}/splitVCF.py {dir}/temp/{base} {N_scatter}
-                
+
                 for file in {dir}/temp/{base}_*
                 do
                   tabix -p vcf "$file"
                 done
-                
+
                 mv {dir}/temp/* {dir}
                 rmdir {dir}/temp
                 '''.format(python=python,
@@ -104,12 +105,12 @@ class GatherVCF(SlurmExecutableTask, CheckTargetNonEmpty):
                 picard='{picard}'
                 source vcftools-0.1.13;
                 source jre-8u92
-                
+
                 set -eo pipefail
-                $picard MergeVcfs O={output}.temp.vcf.gz {in_flags} 
-                
+                $picard MergeVcfs O={output}.temp.vcf.gz {in_flags}
+
                 mv {output}.temp.vcf.gz {output}
-                
+
                 '''.format(picard=picard.format(mem=self.mem * self.n_cpu),
                            output=self.output().path,
                            in_flags="\\\n".join([" I= " + x.path for x in self.input()])
@@ -129,7 +130,7 @@ class GatherCat(SlurmExecutableTask, CheckTargetNonEmpty):
         return '''#!/bin/bash
                 cat {inputs} > {output}.temp
                 mv {output} {output}
-                
+
                 '''.format(output=self.output().path,
                            inputs=" \\\n".join([x.path for x in self.input()])
                            )

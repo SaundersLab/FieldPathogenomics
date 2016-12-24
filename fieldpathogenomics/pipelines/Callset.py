@@ -173,7 +173,7 @@ class VariantsToTable(SlurmExecutableTask, CheckTargetNonEmpty):
         return self.clone(GenotypeGVCF)
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, 'QC',  self.output_prefix + ".tsv"))
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, 'QC', self.output_prefix + ".tsv"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -211,7 +211,7 @@ class PlotCallsetQC(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, 'QC',  self.output_prefix + ".pdf"))
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, 'QC', self.output_prefix + ".pdf"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -315,7 +315,7 @@ class GetSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
 @inherits(GetSNPs)
 class VCFtoHDF5(SlurmExecutableTask):
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
         self.mem = 16000
@@ -359,7 +359,7 @@ class VariantsEval(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, 'QC',  self.output_prefix + ".variant_eval"))
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, 'QC', self.output_prefix + ".variant_eval"))
 
     def work_script(self):
         return '''#!/bin/bash

@@ -1,14 +1,10 @@
 import os
-import sys
 import re
 import subprocess
-import time
-import logging
-import random
 import tempfile
-
 import luigi
 
+import logging
 alloc_log = logging.getLogger('alloc_log')
 logger = logging.getLogger('luigi-interface')
 
@@ -59,11 +55,11 @@ class SlurmMixin(object):
         '''Run the task in launch in allocation alloc'''
         srun = "srun -n 1 --kill-on-bad-exit  --quit-on-interrupt --jobid {jobid} -c {n_cpu} --mem-per-cpu {mem}  -o {outfile} -e {errfile} {launch}".format(
             n_cpu=self.n_cpu, jobid=alloc, mem=self.mem, launch=launch, outfile=self.outfile, errfile=self.errfile)
-        ret = subprocess.run(srun, shell=True, check=True)
+        subprocess.run(srun, shell=True, check=True)
 
     def _slaunch(self, launch):
         return "salloc --quiet -N 1 -c {n_cpu} -n 1 --mem {total_mem} -p {partition} -J {job_name}  srun  -n 1 -c {n_cpu} --mem-per-cpu {mem} {launch} > {outfile} 2> {errfile}".format(
-                n_cpu=self.n_cpu,mem=self.mem, partition=self.partition, job_name=self.job_name, launch=launch, outfile=self.outfile, errfile=self.errfile)
+            n_cpu=self.n_cpu, mem=self.mem, partition=self.partition, job_name=self.job_name, launch=launch, outfile=self.outfile, errfile=self.errfile)
 
     def _fetch_task_failures(self):
         '''Handles reading either the local CompletedProcess or the SLURM log files'''

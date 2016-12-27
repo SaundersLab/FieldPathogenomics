@@ -120,7 +120,7 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
                 '''.format(scratch_dir=os.path.join(self.scratch_dir, self.library),
                            trimmomatic=trimmomatic.format(
                                mem=self.mem * self.n_cpu),
-                           log=self.ouput()[2].path,
+                           log=self.output()[2].path,
                            R1_in=self.input()[0].path,
                            R2_in=self.input()[1].path,
                            adapters='/tgac/software/testing/trimmomatic/0.30/x86_64/bin/adapters/TruSeq.cat.fa',

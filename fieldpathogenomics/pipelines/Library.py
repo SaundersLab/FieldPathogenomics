@@ -175,6 +175,45 @@ class FastxQC(SlurmExecutableTask):
 
 
 @requires(FetchFastqGZ)
+class FastQC(SlurmExecutableTask):
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Set the SLURM request params for this task
+            self.mem = 2000
+            self.n_cpu = 1
+            self.partition = "tgac-medium"
+
+        def output(self):
+            return [LocalTarget(os.path.join(self.base_dir, self.library, 'QC', 'R1', 'fastqc_data.txt')),
+                    LocalTarget(os.path.join(self.base_dir, self.library, 'QC', 'R2', 'fastqc_data.txt'))]
+
+        def work_script(self):
+            return '''#!/bin/bash
+                    source fastqc-0.11.4
+                    mkdir -p {output_dir}
+                    set -euo pipefail
+
+                    fastqc {R1_in} {R2_in} -o {output_dir} -t 1
+
+                    cd {output_dir}
+                    unzip raw_R1_fastqc.zip
+                    sed 's/Filename\traw_R1.fastq.gz/Filename\t{lib}_R1/'  raw_R1_fastqc/fastqc_data.txt > {R1_out}.temp
+
+                    unzip raw_R2_fastqc.zip
+                    sed 's/Filename\traw_R2.fastq.gz/Filename\t{lib}_R2/'  raw_R2_fastqc/fastqc_data.txt > {R2_out}.temp
+
+                    mv {R1_out}.temp {R1_out}
+                    mv {R2_out}.temp {R2_out}
+                    '''.format(output_dir=os.path.join(self.scratch_dir, self.library, 'FastQC'),
+                               R1_in=self.input()[0].path,
+                               R2_in=self.input()[1].path,
+                               lib=self.library,
+                               R1_out=self.output()[0].path,
+                               R2_out=self.output()[1].path)
+
+
+@requires(FetchFastqGZ)
 class FastxTrimmer(CheckTargetNonEmpty, SlurmExecutableTask):
     '''Uses FastxTrimmer to remove Illumina adaptors and barcodes'''
 
@@ -552,10 +591,12 @@ class PlotAlleleFreq(SlurmExecutableTask):
 @inherits(SplitNCigarReads)
 @inherits(FastxQC)
 @inherits(PlotAlleleFreq)
+@inherits(FastQC)
 class PerLibPipeline(luigi.WrapperTask):
     '''Wrapper task that runs all tasks on a single library'''
 
     def requires(self):
+        yield self.clone(FastQC)
         yield self.clone(FastxQC)
         yield self.clone(HaplotypeCaller)
         yield self.clone(PlotAlleleFreq)

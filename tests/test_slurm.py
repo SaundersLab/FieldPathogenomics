@@ -20,6 +20,11 @@ class TestOk(SlurmExecutableTask):
         self.caught_err = self._fetch_task_failures()
         super().on_success()
 
+    def on_failure(self, exception):
+        # Hook callback to capture output
+        self.caught_err = self._fetch_task_failures()
+        super().on_success(exception)
+
 
 class TestFail(SlurmExecutableTask):
     def __init__(self):

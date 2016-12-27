@@ -1,15 +1,16 @@
 import os
 import re
 import subprocess
-import tempfile
 import luigi
+
+from fieldpathogenomics.luigi.cluster import ClusterBase
 
 import logging
 alloc_log = logging.getLogger('alloc_log')
 logger = logging.getLogger('luigi-interface')
 
 
-class SlurmMixin(object):
+class SlurmMixin(ClusterBase):
     '''Mixin to support running Task on a SLURM cluster
 
      Parameters:
@@ -21,20 +22,8 @@ class SlurmMixin(object):
 
      '''
 
-    def _init_tmp(self):
-        # Set up temp folder in shared directory
-        base_tmp_dir = tempfile.gettempdir()
-        self.tmp_dir = os.path.join(base_tmp_dir, self.task_id)
-        logger.info("Tmp dir: %s", self.tmp_dir)
-        os.makedirs(self.tmp_dir, exist_ok=True)
-
-    def clear_tmp(self):
-        try:
-            if (os.path.exists(self.tmp_dir) and self.rm_tmp):
-                logger.debug('Removing temporary directory %s' % self.tmp_dir)
-                subprocess.call(["rm", "-rf", self.tmp_dir])
-        except:
-            pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def _salloc(self):
         '''Request a job allocation from the scheduler, blocks until its ready then return the job id '''
@@ -60,30 +49,6 @@ class SlurmMixin(object):
     def _slaunch(self, launch):
         return "salloc --quiet -N 1 -c {n_cpu} -n 1 --mem {total_mem} -p {partition} -J {job_name}  srun  -n 1 -c {n_cpu} --mem-per-cpu {mem} {launch} > {outfile} 2> {errfile}".format(
             n_cpu=self.n_cpu, mem=self.mem, partition=self.partition, job_name=self.job_name, launch=launch, outfile=self.outfile, errfile=self.errfile)
-
-    def _fetch_task_failures(self):
-        '''Handles reading either the local CompletedProcess or the SLURM log files'''
-        ret = ''
-        if self.run_locally:
-            if self.completedprocess.stdout is not None:
-                ret += self.completedprocess.stdout.replace("\n", "\nstdout " + self.task_id + ": ")
-            if self.completedprocess.stderr is not None:
-                ret += self.completedprocess.stderr.replace("\n", "\nstdout " + self.task_id + ": ")
-        else:
-            try:
-                with open(self.errfile, 'r') as err:
-                    ret += "\nSLURM err " + self.task_id + ": " + \
-                        err.read().replace("\n", "\nSLURM err " + self.task_id + ": ")
-            except (FileNotFoundError, AttributeError):
-                ret += "\nSLURM err " + self.task_id + ": " + "None"
-            try:
-                with open(self.outfile, 'r') as out:
-                    ret += "\nSLURM out " + self.task_id + ": " + \
-                        out.read().replace("\n", "\nSLURM out " + self.task_id + ": ")
-            except (FileNotFoundError, AttributeError):
-                ret += "\nSLURM out " + self.task_id + ": " + "None"
-
-        return ret
 
     def scancel(self):
         if self.alloc is not None:
@@ -137,24 +102,20 @@ class SlurmExecutableTask(luigi.Task, SlurmMixin):
                 self.scancel()
 
     def on_failure(self, exception):
-        err = self._fetch_task_failures()
+        err = self.format_log()
         self.clear_tmp()
         logger.info(err)
         super_retval = super().on_failure(exception)
-        if super_retval is not None:
-            return err + "\n" + super_retval
-        else:
-            return err
+        ret = err if super_retval is None else err + "\n" + super_retval
+        return ret
 
     def on_success(self):
-        err = self._fetch_task_failures()
+        err = self.format_log()
         self.clear_tmp()
         logger.info(err)
         super_retval = super().on_success()
-        if super_retval is not None:
-            return err + "\n" + super_retval
-        else:
-            return err
+        ret = err if super_retval is None else err + "\n" + super_retval
+        return ret
 
     def work_script(self):
         """Override this an make it return the shell script to run"""

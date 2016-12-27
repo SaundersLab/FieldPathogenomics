@@ -1,14 +1,15 @@
 import os
 import subprocess
-import tempfile
 import luigi
+
+from fieldpathogenomics.luigi.cluster import ClusterBase
 
 import logging
 logger = logging.getLogger('luigi-interface')
 alloc_log = logging.getLogger('uv-alloc')
 
 
-class PBSMixin(object):
+class PBSMixin(ClusterBase):
     '''Mixin to support running Task on a SLURM cluster
 
      Parameters:
@@ -26,21 +27,6 @@ class PBSMixin(object):
         significant=False, description="run locally instead of on the cluster")
     rm_tmp = luigi.BoolParameter(default=True, significant=False)
 
-    def _init_tmp(self):
-        # Set up temp folder in shared directory
-        base_tmp_dir = tempfile.gettempdir()
-        self.tmp_dir = os.path.join(base_tmp_dir, self.task_id)
-        logger.info("Tmp dir: %s", self.tmp_dir)
-        os.makedirs(self.tmp_dir, exist_ok=True)
-
-    def clear_tmp(self):
-        try:
-            if (self.tmp_dir and os.path.exists(self.tmp_dir) and self.rm_tmp):
-                logger.debug('Removing temporary directory %s' % self.tmp_dir)
-                subprocess.call(["rm", "-rf", self.tmp_dir])
-        except:
-            pass
-
     def _qsub(self, launch):
         command = "qsub -l select=1:mem={mem}MB:ncpus={n_cpu} -q Test -W block=true -keo -o {outfile} -e {errfile} -N {job_name} {launch} ".format(
             n_cpu=self.n_cpu, mem=self.mem, job_name=self.job_name, launch=launch, outfile=self.outfile, errfile=self.errfile)
@@ -51,50 +37,6 @@ class PBSMixin(object):
 
     def _ssh(self, command):
         return "ssh {host} '{command}' ".format(host=self.host, command=command)
-
-    def _fetch_task_failures(self):
-        '''Handles reading either the local CompletedProcess or the SLURM log files'''
-        ret = ''
-        if self.run_locally:
-            if self.completedprocess.stdout is not None:
-                ret += self.completedprocess.stdout.replace("\n", "\nstdout " + self.task_id + ": ")
-            if self.completedprocess.stderr is not None:
-                ret += self.completedprocess.stderr.replace("\n", "\nstdout " + self.task_id + ": ")
-        else:
-            try:
-                with open(self.errfile, 'r') as err:
-                    ret += "\nSLURM err " + self.task_id + ": " + \
-                        err.read().replace("\n", "\nPBS err " + self.task_id + ": ")
-            except (FileNotFoundError, AttributeError):
-                ret += "\nSLURM err " + self.task_id + ": " + "None"
-            try:
-                with open(self.outfile, 'r') as out:
-                    ret += "\nSLURM out " + self.task_id + ": " + \
-                        out.read().replace("\n", "\nPBS out " + self.task_id + ": ")
-            except (FileNotFoundError, AttributeError):
-                ret += "\nSLURM out " + self.task_id + ": " + "None"
-
-        return ret
-
-    def on_failure(self, exception):
-        err = self._fetch_task_failures()
-        self.clear_tmp()
-        logger.info(err)
-        super_retval = super().on_failure(exception)
-        if super_retval is not None:
-            return err + "\n" + super_retval
-        else:
-            return err
-
-    def on_success(self):
-        err = self._fetch_task_failures()
-        self.clear_tmp()
-        logger.info(err)
-        super_retval = super().on_success()
-        if super_retval is not None:
-            return err + "\n" + super_retval
-        else:
-            return err
 
     def qdel(self):
         if self.alloc is not None:
@@ -138,6 +80,22 @@ class UVExecutableTask(luigi.Task, PBSMixin):
             finally:
                 # Always be sure to free the slurm allocation
                 self.qdel()
+
+    def on_failure(self, exception):
+        err = self.format_log()
+        self.clear_tmp()
+        logger.info(err)
+        super_retval = super().on_failure(exception)
+        ret = err if super_retval is None else err + "\n" + super_retval
+        return ret
+
+    def on_success(self):
+        err = self.format_log()
+        self.clear_tmp()
+        logger.info(err)
+        super_retval = super().on_success()
+        ret = err if super_retval is None else err + "\n" + super_retval
+        return ret
 
     def work_script(self):
         """Override this an make it return the shell script to run"""

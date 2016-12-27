@@ -24,16 +24,6 @@ class TestOk(UVExecutableTask):
                   echo OK > {output}
                   '''.format(output=self.output().path)
 
-    def on_success(self):
-        # Hook callback to capture output
-        self.caught_err = self._fetch_task_failures()
-        super().on_success()
-
-    def on_failure(self, exception):
-        # Hook callback to capture output
-        self.caught_err = self._fetch_task_failures()
-        super().on_failure(exception)
-
 
 class TestFail(UVExecutableTask):
     def __init__(self):

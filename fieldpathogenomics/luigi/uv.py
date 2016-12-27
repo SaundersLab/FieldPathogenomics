@@ -42,8 +42,15 @@ class PBSMixin(object):
             pass
 
     def _qsub(self, launch):
-        return "ssh {host} 'qsub -l select=1:mem={mem}MB:ncpus={n_cpu} -q Test -W block=true -keo -o {outfile} -e {errfile} -N {job_name} {launch} '".format(
-            host=self.host, n_cpu=self.n_cpu, mem=self.mem, job_name=self.job_name, launch=launch, outfile=self.outfile, errfile=self.errfile)
+        command = "qsub -l select=1:mem={mem}MB:ncpus={n_cpu} -q Test -W block=true -keo -o {outfile} -e {errfile} -N {job_name} {launch} ".format(
+            n_cpu=self.n_cpu, mem=self.mem, job_name=self.job_name, launch=launch, outfile=self.outfile, errfile=self.errfile)
+        p = subprocess.run(self._ssh(command), shell=True, check=True, stderr=subprocess.STDOUT,
+                           stdout=subprocess.PIPE, universal_newlines=True)
+        # 208067.UV00000010-P002
+        return p.stdout.readlines()[0].strip()
+
+    def _ssh(self, command):
+        return "ssh {host} '{command}' ".format(host=self.host, command=command)
 
     def _fetch_task_failures(self):
         '''Handles reading either the local CompletedProcess or the SLURM log files'''
@@ -89,6 +96,10 @@ class PBSMixin(object):
         else:
             return err
 
+    def qdel(self):
+        if self.alloc is not None:
+            subprocess.run(self._ssh("qdel {alloc}".format(self.alloc)), shell=True, check=False)
+
 
 class UVExecutableTask(luigi.Task, PBSMixin):
 
@@ -120,15 +131,13 @@ class UVExecutableTask(luigi.Task, PBSMixin):
 
             self.alloc = None
             try:
-                self.alloc = self._salloc()
-                logger.info("SLURM: jobid={0}".format(self.alloc))
+                self.alloc = self._qsub(self.launcher)
+                logger.info("UV: jobid={0}".format(self.alloc))
                 alloc_log.info(self.task_id + "\t" + str(self.alloc))
-
-                self._srun(self.launcher, self.alloc)
 
             finally:
                 # Always be sure to free the slurm allocation
-                self.scancel()
+                self.qdel()
 
     def work_script(self):
         """Override this an make it return the shell script to run"""

@@ -15,13 +15,13 @@ class TestOk(SlurmExecutableTask):
         self.mem = 100
 
     def output(self):
-        return luigi.LocalTarget(os.path.join(test_dir, "TestOk.txt"))
+        return luigi.LocalTarget(os.path.join(test_dir, 'scratch', "SLURM_TestOk.txt"))
 
     def work_script(self):
         return '''#!/bin/bash
                   set -euo pipefail
                   echo OK > {output}
-                  exit 1'''.format(output=self.output().path)
+                  '''.format(output=self.output().path)
 
     def on_success(self):
         # Hook callback to capture output

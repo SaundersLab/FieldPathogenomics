@@ -10,11 +10,6 @@ class ClusterBase(object):
     '''
     '''
 
-    def __init__(self, *args, **kwargs):
-        self._stdout = None
-        self._stderr = None
-        super().__init__(*args, **kwargs)
-
     def _init_tmp(self):
         # Set up temp folder in shared directory
         base_tmp_dir = tempfile.gettempdir()
@@ -33,10 +28,13 @@ class ClusterBase(object):
     def _read_std(self):
         stdout, stderr = None, None
         if self.run_locally:
-            if self.completedprocess.stdout is not None:
-                stdout = self.completedprocess.stdout
-            if self.completedprocess.stderr is not None:
-                stderr = self.completedprocess.stderr
+            try:
+                if self.completedprocess.stdout is not None:
+                    stdout = self.completedprocess.stdout
+                if self.completedprocess.stderr is not None:
+                    stderr = self.completedprocess.stderr
+            except AttributeError:
+                pass
         else:
             try:
                 with open(self.errfile, 'r') as err:
@@ -56,14 +54,22 @@ class ClusterBase(object):
         _, stdout = self._read_std()
         if stdout is not None:
             self._stdout = stdout
-        return self._stdout
+        try:
+            return self._stdout
+        except AttributeError:
+            self._stdout = None
+            return self._stdout
 
     @property
     def stderr(self):
         stderr, _ = self._read_std()
         if stderr is not None:
             self._stderr = stderr
-        return self._stderr
+        try:
+            return self._stderr
+        except AttributeError:
+            self._stderr = None
+            return self._stderr
 
     def format_log(self):
         '''Handles reading either the local CompletedProcess or the SLURM log files'''

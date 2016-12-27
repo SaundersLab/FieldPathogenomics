@@ -31,7 +31,7 @@ class PBSMixin(object):
         base_tmp_dir = tempfile.gettempdir()
         self.tmp_dir = os.path.join(base_tmp_dir, self.task_id)
         logger.info("Tmp dir: %s", self.tmp_dir)
-        os.makedirs(self.tmp_dir)
+        os.makedirs(self.tmp_dir, exist_ok=True)
 
     def clear_tmp(self):
         try:

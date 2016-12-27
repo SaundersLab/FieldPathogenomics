@@ -100,7 +100,7 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
     def output(self):
         return [LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R1.fastq.gz")),
                 LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R2.fastq.gz")),
-                LocalTarget(os.path.join(self.base_dir, self.library, self.library + "_trimmomatic.txt"))]
+                LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, self.library + "_trimmomatic.txt"))]
 
     def work_script(self):
         return '''#!/bin/bash
@@ -111,7 +111,7 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
                cd {scratch_dir}
                trimmomatic='{trimmomatic}'
                $trimmomatic PE -threads 4 {R1_in} {R2_in} -baseout temp.fastq.gz \
-               ILLUMINACLIP:{adapters}:2:30:10:4 SLIDINGWINDOW:4:20 MINLEN:50 > {log}.temp
+               ILLUMINACLIP:{adapters}:2:30:10:4 SLIDINGWINDOW:4:20 MINLEN:50 2> {log}.temp
 
                mv temp_1P.fastq.gz {R1_out}
                mv temp_2P.fastq.gz {R2_out}
@@ -184,8 +184,8 @@ class FastQC(SlurmExecutableTask):
             self.partition = "tgac-medium"
 
         def output(self):
-            return [LocalTarget(os.path.join(self.base_dir, self.library, 'QC', 'R1', 'fastqc_data.txt')),
-                    LocalTarget(os.path.join(self.base_dir, self.library, 'QC', 'R2', 'fastqc_data.txt'))]
+            return [LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'QC', 'R1', 'fastqc_data.txt')),
+                    LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'QC', 'R2', 'fastqc_data.txt'))]
 
         def work_script(self):
             return '''#!/bin/bash

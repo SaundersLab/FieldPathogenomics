@@ -44,10 +44,10 @@ class PBSMixin(object):
     def _qsub(self, launch):
         command = "qsub -l select=1:mem={mem}MB:ncpus={n_cpu} -q Test -W block=true -keo -o {outfile} -e {errfile} -N {job_name} {launch} ".format(
             n_cpu=self.n_cpu, mem=self.mem, job_name=self.job_name, launch=launch, outfile=self.outfile, errfile=self.errfile)
-        p = subprocess.run(self._ssh(command), shell=True, check=True, stderr=subprocess.STDOUT,
+        p = subprocess.run(self._ssh(command), shell=True, check=True, stderr=subprocess.PIPE,
                            stdout=subprocess.PIPE, universal_newlines=True)
         # 208067.UV00000010-P002
-        return p.stdout.readlines()[0].strip()
+        return p.stdout.strip()
 
     def _ssh(self, command):
         return "ssh {host} '{command}' ".format(host=self.host, command=command)
@@ -98,7 +98,7 @@ class PBSMixin(object):
 
     def qdel(self):
         if self.alloc is not None:
-            subprocess.run(self._ssh("qdel {alloc}".format(self.alloc)), shell=True, check=False)
+            subprocess.run(self._ssh("qdel {alloc}".format(alloc=self.alloc)), shell=True, check=False)
 
 
 class UVExecutableTask(luigi.Task, PBSMixin):

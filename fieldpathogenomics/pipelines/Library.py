@@ -94,12 +94,13 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
         self.mem = 2000
-        self.n_cpu = 3
+        self.n_cpu = 4
         self.partition = "tgac-medium"
 
     def output(self):
         return [LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R1.fastq.gz")),
-                LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R2.fastq.gz"))]
+                LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R2.fastq.gz")),
+                LocalTarget(os.path.join(self.base_dir, self.library, self.library + "_trimmomatic.txt"))]
 
     def work_script(self):
         return '''#!/bin/bash
@@ -109,19 +110,17 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
 
                cd {scratch_dir}
                trimmomatic='{trimmomatic}'
-               $trimmomatic PE -threads 8 {R1_in} {R2_in} -baseout temp.fastq.gz  ILLUMINACLIP:{adapters}:2:30:10:4 SLIDINGWINDOW:4:20 MINLEN:50
-
-               #cat temp_1P.fastq.gz >> temp_1U.fastq.gz
-               #rm temp_1P.fastq.gz
-               #cat temp_2P.fastq.gz >> temp_2U.fastq.gz
-               #rm temp_2P.fastq.gz
+               $trimmomatic PE -threads 4 {R1_in} {R2_in} -baseout temp.fastq.gz \
+               ILLUMINACLIP:{adapters}:2:30:10:4 SLIDINGWINDOW:4:20 MINLEN:50 > {log}.temp
 
                mv temp_1P.fastq.gz {R1_out}
                mv temp_2P.fastq.gz {R2_out}
+               mv {log}.temp {log}
 
                 '''.format(scratch_dir=os.path.join(self.scratch_dir, self.library),
                            trimmomatic=trimmomatic.format(
                                mem=self.mem * self.n_cpu),
+                           log=self.ouput()[2].path,
                            R1_in=self.input()[0].path,
                            R2_in=self.input()[1].path,
                            adapters='/tgac/software/testing/trimmomatic/0.30/x86_64/bin/adapters/TruSeq.cat.fa',

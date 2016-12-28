@@ -111,7 +111,8 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
                cd {scratch_dir}
                trimmomatic='{trimmomatic}'
                $trimmomatic PE -threads 4 {R1_in} {R2_in} -baseout temp.fastq.gz \
-               ILLUMINACLIP:{adapters}:2:30:10:4 SLIDINGWINDOW:4:20 MINLEN:50 2> {log}.temp
+               ILLUMINACLIP:{adapters}:2:30:10:4 SLIDINGWINDOW:4:20 MINLEN:50 \
+               2>&1 | sed 's/raw_R1.fastq.gz/{library}.fastq.gz/' > {log}.temp
 
                mv temp_1P.fastq.gz {R1_out}
                mv temp_2P.fastq.gz {R2_out}
@@ -121,6 +122,7 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
                            trimmomatic=trimmomatic.format(
                                mem=self.mem * self.n_cpu),
                            log=self.output()[2].path,
+                           library=self.library,
                            R1_in=self.input()[0].path,
                            R2_in=self.input()[1].path,
                            adapters='/tgac/software/testing/trimmomatic/0.30/x86_64/bin/adapters/TruSeq.cat.fa',

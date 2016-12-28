@@ -176,7 +176,7 @@ class FastxQC(SlurmExecutableTask):
 
 
 @requires(FetchFastqGZ)
-class FastQC(SlurmExecutableTask):
+class FastQC(CheckTargetNonEmpty, SlurmExecutableTask):
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -629,7 +629,26 @@ class LibraryBatchWrapper(luigi.WrapperTask):
             yield self.clone_parent(library=lib.rstrip())
 
 
+@requires(LibraryBatchWrapper)
+class MultiQC(CheckTargetNonEmpty, SlurmExecutableTask):
+
+    def __init__(self):
+            self.mem = 4000
+            self.n_cpu = 1
+            self.partition = "tgac-short"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'libraries', 'multiqc_report.html'))
+
+    def work_script(self):
+        return '''#!/bin/bash
+                 {python}
+                 cd {lib_dir}
+                 multiqc .
+        '''.format(python=python, lib_dir=os.path.join(self.base_dir, 'libraries'))
+
 # ----------------------------------------------------------------------- #
+
 
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
@@ -654,6 +673,6 @@ if __name__ == '__main__':
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]
 
-    luigi.run(['LibraryBatchWrapper', '--lib-list', json.dumps(lib_list),
+    luigi.run(['MultiQC', '--lib-list', json.dumps(lib_list),
                '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
                '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta'] + sys.argv[2:])

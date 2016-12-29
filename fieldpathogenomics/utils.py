@@ -6,6 +6,24 @@ import subprocess
 import pandas as pd
 import hashlib
 import inspect
+import zlib
+
+###############################################################################
+#                                 Checksum                                   #
+###############################################################################
+
+
+def checksum(file):
+    '''Adler32 checksum. Uses blocksize of 500MB. Takes ~30s to checksum 10GB'''
+    BLOCK_SIZE = 2**29
+    with open(file, 'rb') as f:
+        value = 0
+        while True:
+            data = f.read(BLOCK_SIZE)
+            if not data:
+                break
+            value = zlib.adler32(data, value)
+    return value
 
 ###############################################################################
 #                         Testing file emptiness                              #
@@ -79,7 +97,7 @@ keep = [
 
 
 def parseStarLog(logfile, lib):
-    '''Parse the star Log.final.out file :param: logfile for the library :param: lib 
+    '''Parse the star Log.final.out file :param: logfile for the library :param: lib
        returns a pandas.Series of the fields defined in keep'''
     try:
         s = pd.Series()

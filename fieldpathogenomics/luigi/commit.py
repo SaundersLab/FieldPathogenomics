@@ -4,7 +4,7 @@ import luigi
 import os
 import sqlalchemy
 import datetime
-from fieldpathogenomics.utils import checksum, current_commit_hash
+import fieldpathogenomics.utils as utils
 
 
 class CommitToTable(sqla.CopyToTable):
@@ -12,7 +12,8 @@ class CommitToTable(sqla.CopyToTable):
                (["checksum", sqlalchemy.INTEGER], {}),
                (["datetime", sqlalchemy.DateTime], {}),
                (["task_family", sqlalchemy.String(100)], {}),
-               (["git_commit", sqlalchemy.String(40)], {})]
+               (["git_commit", sqlalchemy.String(40)], {}),
+               (["pipeline_hash", sqlalchemy.String(40)], {})]
 
     connection_string = "mysql+pymysql://tgac:tgac_bioinf@tgac-db1.hpccluster/buntingd_fieldpathogenomics"
     table = "FileTable"
@@ -45,14 +46,15 @@ class CommittedTarget(luigi.LocalTarget):
        integrity later and also related the output file to a particular version of the
        code that created it.'''
     def checksum(self):
-        return checksum(self.path)
+        return utils.checksum(self.path)
 
-    def commit(self, task_family):
+    def commit(self, task_family, pipeline_hash):
         row = (os.path.abspath(self.path),
                self.checksum(),
                str(datetime.datetime.now()),
                task_family,
-               current_commit_hash(os.path.split(__file__)[0]))
+               utils.current_commit_hash(os.path.split(__file__)[0]),
+               pipeline_hash)
         CommitToTable([row]).run()
 
 
@@ -60,6 +62,8 @@ class CommittedTask():
     '''Any task that creates CommittedTargets need to subclass this mixin.
        It overrides on_sucess to commit the taget checksum to SQL'''
     def on_success(self):
+        pipeline_hash = utils.hash_pipeline(self)
         for o in flatten(self.output()):
             if isinstance(o, CommittedTarget):
-                o.commit(task_family=self.task_family)
+                o.commit(task_family=self.task_family,
+                         pipeline_hash=pipeline_hash)

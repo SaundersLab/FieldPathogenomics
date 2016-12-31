@@ -28,7 +28,7 @@ class PBSMixin(ClusterBase):
     rm_tmp = luigi.BoolParameter(default=True, significant=False)
 
     def _qsub(self, launch):
-        command = "qsub -l select=1:mem={mem}MB:ncpus={n_cpu} -q Test -W block=true -keo -o {outfile} -e {errfile} -N {job_name} {launch} ".format(
+        command = "qsub -l select=1:mem={mem}MB:ncpus={n_cpu} -q Test -W block=true -o {outfile} -e {errfile} -N {job_name} {launch} ".format(
             n_cpu=self.n_cpu, mem=self.mem, job_name=self.job_name, launch=launch, outfile=self.outfile, errfile=self.errfile)
         p = subprocess.run(self._ssh(command), shell=True, check=True, stderr=subprocess.PIPE,
                            stdout=subprocess.PIPE, universal_newlines=True)

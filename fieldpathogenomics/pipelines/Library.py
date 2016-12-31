@@ -657,5 +657,5 @@ if __name__ == '__main__':
 
     luigi.run(['LibraryBatchWrapper',
                '--lib-list', json.dumps(lib_list),
-               '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
-               '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta'] + sys.argv[2:])
+               '--star-genome', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/genome/',
+               '--reference', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/PST130_contigs.fasta'] + sys.argv[2:])

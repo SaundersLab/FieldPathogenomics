@@ -232,7 +232,12 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
                   mkdir -p {scratch_dir}/star_temp
                   cd  {scratch_dir}/star_temp
 
-                  STAR  --genomeDir {star_genome} --outSAMstrandField intronMotif  --outSAMtype BAM SortedByCoordinate --runThreadN {n_cpu} --readFilesCommand gunzip -c --readFilesIn {R1} {R2}
+                  STAR  --genomeDir {star_genome} \
+                        --outSAMstrandField intronMotif \
+                        --outSAMtype BAM SortedByCoordinate \
+                        --runThreadN {n_cpu} \
+                        --readFilesCommand gunzip -c \
+                        --readFilesIn {R1} {R2}
 
                   mv {scratch_dir}/star_temp/Log.final.out {star_log}
                   mv {scratch_dir}/star_temp/Aligned.sortedByCoord.out.bam {star_bam}
@@ -589,18 +594,30 @@ class PlotAlleleFreq(SlurmExecutableTask):
                            temp2=self.temp2.path)
 
 
-@inherits(SplitNCigarReads)
+@inherits(Trimmomatic)
 @inherits(FastxQC)
 @inherits(PlotAlleleFreq)
 @inherits(FastQC)
-class PerLibPipeline(luigi.WrapperTask):
-    '''Wrapper task that runs all tasks on a single library'''
+class CombinedQC(luigi.WrapperTask):
+    '''Wrapper task that runs all the QC type tasks library'''
 
     def requires(self):
         yield self.clone(FastQC)
         yield self.clone(FastxQC)
         yield self.clone(HaplotypeCaller)
         yield self.clone(PlotAlleleFreq)
+
+
+@inherits(SplitNCigarReads)
+@inherits(CombinedQC)
+@inherits(HaplotypeCaller)
+class PerLibPipeline(luigi.WrapperTask):
+    '''Wrapper task that runs all tasks on a single library'''
+
+    def requires(self):
+        yield self.clone(CombinedQC)
+        yield self.clone(HaplotypeCaller)
+        yield self.clone(SplitNCigarReads)
 
 
 @requires(PerLibPipeline)

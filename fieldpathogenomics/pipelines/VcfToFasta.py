@@ -4,29 +4,35 @@ import os
 import sys
 import json
 import shutil
-import logging
+import time
 
 import luigi
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
+from fieldpathogenomics.pipelines.Callset import GetRefSNPs
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 
-from SNP_calling import picard
+import logging
+logger = logging.getLogger('luigi-interface')
+alloc_log = logging.getLogger('alloc_log')
+alloc_log.setLevel(logging.DEBUG)
+
+picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
+gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
+snpeff = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4.3g/x86_64/snpEff.jar "
+snpsift = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4.3g/x86_64/SnpSift.jar "
+
+python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
+
+# Ugly hack
+script_dir = os.path.join(os.path.split(
+    os.path.split(__file__)[0])[0], 'scripts')
+log_dir = os.path.join(os.path.split(
+    os.path.split(os.path.split(__file__)[0])[0])[0], 'logs')
+os.makedirs(log_dir, exist_ok=True)
 
 
-class GetVCF(luigi.ExternalTask):
-    '''Input VCF file, containing both SNPs and non-variant sites'''
-    ref_snp_vcf = luigi.Parameter()
-    base_dir = luigi.Parameter(
-        default="/usr/users/ga004/buntingd/FP_dev/testing/", significant=False)
-    scratch_dir = luigi.Parameter(
-        default="/tgac/scratch/buntingd/", significant=False)
-
-    def output(self):
-        return LocalTarget(self.ref_snp_vcf)
-
-
-@requires(GetVCF)
+@requires(GetRefSNPs)
 class ConvertToBCF(SlurmExecutableTask):
     '''Use bcftools view to convert the vcf to bcf, its worth doing this conversion
      as the bcf formatted file is much faster for separating the samples than the vcf'''
@@ -44,7 +50,9 @@ class ConvertToBCF(SlurmExecutableTask):
     def work_script(self):
         return '''#!/bin/bash -e
                 source bcftools-1.3.1;
-                bcftools view {input} -o {output} -O b --threads 1
+                bcftools view {input} -o {output}.temp -O b --threads 1
+
+                mv {output}.temp {output}
                 '''.format(input=self.input().path,
                            output=self.output().path)
 
@@ -74,10 +82,13 @@ class GetSingleSample(SlurmExecutableTask):
                 source picardtools-2.1.1
                 picard='{picard}'
 
-                bcftools view {input} -o {vcf} -O z -s {library} --exclude-uncalled --no-update
-                tabix -p vcf {vcf}
-                $picard IntervalListTools I={vcf} INVERT=true O=/dev/stdout | $picard IntervalListToBed I=/dev/stdin O={mask}
+                bcftools view {input} -o {vcf}.temp -O z -s {library} --exclude-uncalled --no-update
+                $picard IntervalListTools I={vcf} INVERT=true O=/dev/stdout | $picard IntervalListToBed I=/dev/stdin O={mask}.temp
 
+                mv {vcf}.temp {vcf}
+                mv {mask}.temp {mask}
+
+                tabix -p vcf {vcf}
                 '''.format(picard=picard.format(mem=self.mem),
                            input=self.input().path,
                            vcf=self.output()[0].path,
@@ -109,7 +120,9 @@ class BCFtoolsConsensus(SlurmExecutableTask):
         return '''#!/bin/bash -e
 
                 source bcftools-1.3.1;
-                bcftools consensus {vcf} -f {reference} -s {library} -m {mask} {consensus_type} > {output}
+                bcftools consensus {vcf} -f {reference} -s {library} -m {mask} {consensus_type} > {output}.temp
+
+                mv {output}.temp {output}
 
                 source samtools-1.3;
                 samtools faidx {output}
@@ -141,8 +154,9 @@ class GFFread(SlurmExecutableTask):
         return '''#!/bin/bash -e
                 source gffread-0.9.8;
 
-                gffread {gff} -g {input} -w /dev/stdout | fold -w 60 > {output}
+                gffread {gff} -g {input} -w /dev/stdout | fold -w 60 > {output}.temp
 
+                mv {output}.temp {output}
                 '''.format(gff=self.gff,
                            input=self.input().path,
                            output=self.output().path)
@@ -151,6 +165,7 @@ class GFFread(SlurmExecutableTask):
 @inherits(GFFread)
 class GetConsensusesWrapper(luigi.WrapperTask):
     lib_list = luigi.ListParameter()
+    library = None
 
     def requires(self):
         for library in self.lib_list:
@@ -161,19 +176,35 @@ class GetConsensusesWrapper(luigi.WrapperTask):
         '''If the task successfully completes clean up the temporary files'''
         shutil.rmtree(os.path.join(self.scratch_dir, 'single_sample'))
         return super().on_success()
-# Same hack as in LibraryBatchWrapper, allows us to propagate all
-# arguments of GFFread upwards apart from library
-GetConsensusesWrapper.library = None
-GetConsensusesWrapper.consensus_type = None
+
 
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
     logging.disable(logging.DEBUG)
-    with open(sys.argv[1], 'r') as librarys_file:
-        lib_list = [line.rstrip() for line in librarys_file]
+    timestr = time.strftime("%Y%m%d-%H%M%S")
 
-    luigi.run(['GetConsensusesWrapper', '--lib-list', json.dumps(lib_list),
+    fh = logging.FileHandler(os.path.join(
+        log_dir, os.path.basename(__file__) + "_" + timestr + ".log"))
+    fh.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    alloc_fh = logging.FileHandler(os.path.join(
+        log_dir, os.path.basename(__file__) + "_" + timestr + ".salloc.log"))
+    alloc_fh.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(message)s')
+    alloc_fh.setFormatter(formatter)
+    alloc_log.addHandler(alloc_fh)
+
+    with open(sys.argv[1], 'r') as libs_file:
+        lib_list = [line.rstrip() for line in libs_file]
+
+    name = os.path.split(sys.argv[1])[1].split('.', 1)[0]
+
+    luigi.run(['GetConsensusesWrapper', '--output-prefix', name,
+                                        '--lib-list', json.dumps(lib_list),
                                         '--gff', '/usr/users/ga004/buntingd/FP_dev/testing/data/PST_genes_final.gff3',
-                                        '--ref-snp-vcf', '/usr/users/ga004/buntingd/FP_dev/testing/callsets/genotypes/genotypes_RefSNPs.vcf.gz',
-                                        '--reference', '/usr/users/ga004/buntingd/FP_dev/testing/data/PST130_contigs.fasta',
-                                        '--workers', '3', ])
+                                        '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
+                                        '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])

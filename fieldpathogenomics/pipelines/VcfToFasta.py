@@ -1,14 +1,13 @@
-# get_fasta
-
 import os
 import sys
 import json
-import shutil
 import time
 
-import luigi
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
+from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
 from fieldpathogenomics.pipelines.Callset import GetRefSNPs
+from fieldpathogenomics.utils import CheckTargetNonEmpty
+
+import luigi
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 
@@ -33,7 +32,7 @@ os.makedirs(log_dir, exist_ok=True)
 
 
 @requires(GetRefSNPs)
-class ConvertToBCF(SlurmExecutableTask):
+class ConvertToBCF(SlurmExecutableTask, CheckTargetNonEmpty):
     '''Use bcftools view to convert the vcf to bcf, its worth doing this conversion
      as the bcf formatted file is much faster for separating the samples than the vcf'''
 
@@ -45,7 +44,7 @@ class ConvertToBCF(SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, os.path.basename(self.ref_snp_vcf).split(".")[0] + ".bcf.gz"))
+        return LocalTarget(os.path.join(self.scratch_dir, self.output_prefix + ".bcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash -e
@@ -58,7 +57,7 @@ class ConvertToBCF(SlurmExecutableTask):
 
 
 @requires(ConvertToBCF)
-class GetSingleSample(SlurmExecutableTask):
+class GetSingleSample(SlurmExecutableTask, CheckTargetNonEmpty):
     '''Pull a single sample out of the joint BCF file and use picard to compute a BED file where there is missing data'''
     library = luigi.Parameter()
 
@@ -83,12 +82,13 @@ class GetSingleSample(SlurmExecutableTask):
                 picard='{picard}'
 
                 bcftools view {input} -o {vcf}.temp -O z -s {library} --exclude-uncalled --no-update
-                $picard IntervalListTools I={vcf} INVERT=true O=/dev/stdout | $picard IntervalListToBed I=/dev/stdin O={mask}.temp
-
-                mv {vcf}.temp {vcf}
-                mv {mask}.temp {mask}
-
+                zcat {vcf}.temp | sed 's/<NON_REF>/N/' | bgzip -c > {vcf}.temp1
+                rm {vcf}.temp
+                mv {vcf}.temp1 {vcf}
                 tabix -p vcf {vcf}
+
+                $picard IntervalListTools I={vcf} INVERT=true O=/dev/stdout | $picard IntervalListToBed I=/dev/stdin O={mask}.temp
+                mv {mask}.temp {mask}
                 '''.format(picard=picard.format(mem=self.mem),
                            input=self.input().path,
                            vcf=self.output()[0].path,
@@ -97,7 +97,7 @@ class GetSingleSample(SlurmExecutableTask):
 
 
 @requires(GetSingleSample)
-class BCFtoolsConsensus(SlurmExecutableTask):
+class BCFtoolsConsensus(SlurmExecutableTask, CheckTargetNonEmpty):
     '''Apply the variants in the vcf file and mask with the missing data BED file.
        :param str consensus_type: can be H1 or H2 for applying one of the (pseudo) haplotypes or iupac-codes for ambiguous coding'''
 
@@ -112,7 +112,7 @@ class BCFtoolsConsensus(SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'fasta', 'genomes', self.library + "_" + self.consensus_type + '.fasta'))
+        return LocalTarget(os.path.join(self.scratch_dir, 'single_sample', self.library + "_" + self.consensus_type + '.fasta'))
 
     def work_script(self):
         ct_flag = "--" + self.consensus_type if self.consensus_type == 'iupac-codes' else "-" + \
@@ -136,7 +136,7 @@ class BCFtoolsConsensus(SlurmExecutableTask):
 
 
 @requires(BCFtoolsConsensus)
-class GFFread(SlurmExecutableTask):
+class GFFread(SlurmExecutableTask, CheckTargetNonEmpty):
     '''Pull out the spliced exons from the genomes'''
     gff = luigi.Parameter()
 
@@ -148,7 +148,7 @@ class GFFread(SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'fasta', 'genes', self.library + self.consensus_type + '.fasta'))
+        return LocalTarget(os.path.join(self.scratch_dir, 'single_sample', self.library + '_genes_' + self.consensus_type + '.fasta'))
 
     def work_script(self):
         return '''#!/bin/bash -e
@@ -163,19 +163,53 @@ class GFFread(SlurmExecutableTask):
 
 
 @inherits(GFFread)
-class GetConsensusesWrapper(luigi.WrapperTask):
+class GetConsensusesWrapper(luigi.Task):
     lib_list = luigi.ListParameter()
     library = None
 
     def requires(self):
-        for library in self.lib_list:
-            for consensus_type in ['H1', 'H2', 'iupac-codes']:
-                yield self.clone_parent(library=library, consensus_type=consensus_type)
+        return {consensus_type: [self.clone_parent(library=library, consensus_type=consensus_type)
+                                 for library in self.lib_list]
+                                 for consensus_type in ['H1', 'H2', 'iupac-codes']}
 
-    def on_success(self):
-        '''If the task successfully completes clean up the temporary files'''
-        shutil.rmtree(os.path.join(self.scratch_dir, 'single_sample'))
-        return super().on_success()
+
+@requires(GetConsensusesWrapper)
+class GetPhylip(SlurmTask):
+    min_cov = luigi.FloatParameter(default=0.8)
+    min_indvs = luigi.FloatParameter(default=0.8)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 4000
+        self.n_cpu = 1
+        self.partition = "tgac-short"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, self.output_prefix + ".phy"))
+
+    def work(self):
+        import Bio
+        import contextlib
+        import numpy as np
+
+        with contextlib.ExitStack() as stack, self.output().open('w') as fout:
+
+            fout.write("PHYLIPHEADER")
+
+            fhs = [stack.enter_context(open(fname)) for fname in self.input()['iupac-codes']]
+            parsers = zip(*[Bio.SeqIO.parse(f, 'fasta') for f in fhs])
+            for seqs in parsers:
+                id, l = seqs[0].id, len(seqs[0])
+                assert all([x.id == id for x in seqs]), "Fasta sequences not sorted!"
+
+                coverage = 1 - np.array([x.seq.count('N') for x in seqs]) / l
+                indvs = np.mean(coverage > self.min_cov)
+
+                if indvs > self.min_indvs:
+                    for (x, lib) in zip(seqs, self.lib_list):
+                        x.id = lib
+                    Bio.AlignIO.write(Bio.Align.MultipleSeqAlignment(seqs), fout, 'phylip-relaxed')
 
 
 if __name__ == '__main__':
@@ -203,8 +237,8 @@ if __name__ == '__main__':
 
     name = os.path.split(sys.argv[1])[1].split('.', 1)[0]
 
-    luigi.run(['GetConsensusesWrapper', '--output-prefix', name,
+    luigi.run(['GetPhylip', '--output-prefix', name,
                                         '--lib-list', json.dumps(lib_list),
-                                        '--gff', '/usr/users/ga004/buntingd/FP_dev/testing/data/PST_genes_final.gff3',
+                                        '--gff', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/PST_genes_final.gff3',
                                         '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
                                         '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])

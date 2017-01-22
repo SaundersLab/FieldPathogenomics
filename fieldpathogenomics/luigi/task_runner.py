@@ -1,10 +1,10 @@
-import pickle
+import dill
 import sys
 
 
 def main():
     with open(sys.argv[1], 'rb') as jobfile:
-        job = pickle.load(jobfile)
+        job = dill.load(jobfile)
     job.work()
 
 

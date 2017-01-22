@@ -145,9 +145,9 @@ class SlurmTask(SlurmExecutableTask):
         with self.no_unpicklable_properties():
             self.job_file = os.path.join(self.tmp_dir, 'job-instance.pickle')
             if self.__module__ == '__main__':
-                d = pickle.dumps(self)
                 module_name = os.path.basename(sys.argv[0]).rsplit('.', 1)[0]
-                d = d.replace(b'(c__main__', b"(c" + module_name.encode())
+                d = pickle.dumps(self)
+                d = d.replace(b'c__main__', b"c" + module_name.encode())
                 open(self.job_file, "wb").write(d)
             else:
                 pickle.dump(self, open(self.job_file, "wb"))

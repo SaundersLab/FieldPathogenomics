@@ -4,6 +4,7 @@ import subprocess
 import luigi
 import pickle
 import sys
+import inspect
 
 from fieldpathogenomics.luigi.cluster import ClusterBase
 
@@ -128,12 +129,16 @@ class SlurmTask(SlurmExecutableTask):
 
     def work_script(self):
         python = os.path.join((os.environ['VIRTUAL_ENV']), 'bin', 'activate')
+        cwd = os.getcwd()
+        module_path = os.path.split(inspect.getsourcefile(self.__class__))[0]
         return '''#!/bin/bash
                   source {python}
                   set -euo pipefail
-                  python -m fieldpathogenomics.luigi.task_runner {task}
+                  python -m fieldpathogenomics.luigi.task_runner {task} {module_path} {cwd}
                   '''.format(python=python,
-                             task=self.job_file)
+                             task=self.job_file,
+                             module_path=module_path,
+                             cwd=cwd)
 
     def _dump(self):
         """Dump instance to file."""

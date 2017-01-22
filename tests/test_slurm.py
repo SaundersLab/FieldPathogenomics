@@ -60,8 +60,9 @@ class TestOk(SlurmTask):
         return luigi.LocalTarget(os.path.join(test_dir, 'scratch', "SLURM_TestOk.txt"))
 
     def work(self):
+        print("WOOOOOO HELLO")
         with self.output().open('w') as f:
-            f.write("OK")
+            f.write("OK\n")
 
 
 class TestFail(SlurmTask):

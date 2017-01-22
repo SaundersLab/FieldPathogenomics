@@ -142,10 +142,10 @@ class SlurmTask(SlurmExecutableTask):
             if self.__module__ == '__main__':
                 d = pickle.dumps(self)
                 module_name = os.path.basename(sys.argv[0]).rsplit('.', 1)[0]
-                d = d.replace('(c__main__', "(c" + module_name)
-                open(self.job_file, "w").write(d)
+                d = d.replace(b'(c__main__', b"(c" + module_name.encode())
+                open(self.job_file, "wb").write(d)
             else:
-                pickle.dump(self, open(self.job_file, "w"))
+                pickle.dump(self, open(self.job_file, "wb"))
 
     def run(self):
         # Bit of a hack, _init_tmp() also gets called again inside super().run()

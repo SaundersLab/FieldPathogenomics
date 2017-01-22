@@ -172,6 +172,9 @@ class GetConsensusesWrapper(luigi.Task):
                                  for library in self.lib_list]
                                  for consensus_type in ['H1', 'H2', 'iupac-codes']}
 
+    def output(self):
+        return self.input()
+
 
 @requires(GetConsensusesWrapper)
 class GetPhylip(SlurmTask):

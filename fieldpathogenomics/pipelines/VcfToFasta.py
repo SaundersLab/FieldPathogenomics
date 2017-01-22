@@ -200,7 +200,7 @@ class GetPhylip(SlurmTask):
 
             fout.write("PHYLIPHEADER")
 
-            fhs = [stack.enter_context(open(fname)) for fname in self.input()['iupac-codes']]
+            fhs = [stack.enter_context(open(fname.path)) for fname in self.input()['iupac-codes']]
             parsers = zip(*[Bio.SeqIO.parse(f, 'fasta') for f in fhs])
             for seqs in parsers:
                 id, l = seqs[0].id, len(seqs[0])

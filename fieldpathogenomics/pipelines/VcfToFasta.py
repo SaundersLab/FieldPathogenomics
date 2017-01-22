@@ -194,15 +194,16 @@ class GetPhylip(SlurmTask):
     def work(self):
         import Bio
         import Bio.SeqIO
+        import Bio.AlignIO
         import contextlib
         import numpy as np
 
         with contextlib.ExitStack() as stack, self.output().open('w') as fout:
 
-            fout.write("PHYLIPHEADER")
-
             fhs = [stack.enter_context(open(fname.path)) for fname in self.input()['iupac-codes']]
             parsers = zip(*[Bio.SeqIO.parse(f, 'fasta') for f in fhs])
+            msa = [Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(''), id=lib) for lib in self.lib_list]
+
             for seqs in parsers:
                 id, l = seqs[0].id, len(seqs[0])
                 assert all([x.id == id for x in seqs]), "Fasta sequences not sorted!"
@@ -211,9 +212,39 @@ class GetPhylip(SlurmTask):
                 indvs = np.mean(coverage > self.min_cov)
 
                 if indvs > self.min_indvs:
-                    for (x, lib) in zip(seqs, self.lib_list):
-                        x.id = lib
-                    Bio.AlignIO.write(Bio.Align.MultipleSeqAlignment(seqs), fout, 'phylip-relaxed')
+                    for (i, x) in enumerate(seqs):
+                        # 3rd codon
+                        msa[i] += x.seq[::3]
+
+            Bio.AlignIO.write(Bio.Align.MultipleSeqAlignment(msa), fout, 'phylip-relaxed')
+
+
+@requires(GetPhylip)
+class RAxML(SlurmExecutableTask):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 16000
+        self.n_cpu = 10
+        self.partition = "tgac-medium"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.scratch_dir, 'trees', self.output_prefix + ".phy"))
+
+    def work_script(self):
+        return '''#!/bin/bash
+               source raxml-8.2.9;
+               set -euo pipefail
+
+               mkdir -p {output_dir}
+               cd {output_dir}
+
+               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix} -p 100
+
+               '''.format(output_dir=os.path.join(self.scratch_dir, 'trees', self.output_prefix),
+                          n_cpu=self.n_cpu,
+                          input=self.input().path,
+                          suffix=self.output_prefix)
 
 
 if __name__ == '__main__':
@@ -241,7 +272,7 @@ if __name__ == '__main__':
 
     name = os.path.split(sys.argv[1])[1].split('.', 1)[0]
 
-    luigi.run(['GetPhylip', '--output-prefix', name,
+    luigi.run(['RAxML', '--output-prefix', name,
                                         '--lib-list', json.dumps(lib_list),
                                         '--gff', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/PST_genes_final.gff3',
                                         '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',

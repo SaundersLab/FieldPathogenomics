@@ -61,7 +61,7 @@ class TestOk(SlurmTask):
 
     def work(self):
         with self.output().open('w') as f:
-            f.write("OK!")
+            f.write("OK")
 
 
 class TestFail(SlurmTask):

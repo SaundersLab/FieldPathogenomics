@@ -148,6 +148,7 @@ class SlurmTask(SlurmExecutableTask):
                 pickle.dump(self, open(self.job_file, "w"))
 
     def run(self):
+        # Bit of a hack, _init_tmp() also gets called again inside super().run()
+        self._init_tmp()
         self._dump()
         super().run()
-

@@ -275,10 +275,10 @@ class FastQC(CheckTargetNonEmpty, SlurmExecutableTask):
                     fastqc {R1_in} {R2_in} -o {output_dir} -t 1
 
                     cd {output_dir}
-                    unzip raw_R1_fastqc.zip
+                    unzip filtered_R1_fastqc.zip
                     sed 's/Filename\tfiltered_R1.fastq.gz/Filename\t{lib}_R1/'  filtered_R1_fastqc/fastqc_data.txt > {R1_out}.temp
 
-                    unzip raw_R2_fastqc.zip
+                    unzip filtered_R2_fastqc.zip
                     sed 's/Filename\tfiltered_R2.fastq.gz/Filename\t{lib}_R2/'  filtered_R2_fastqc/fastqc_data.txt > {R2_out}.temp
 
                     mv {R1_out}.temp {R1_out}

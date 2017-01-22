@@ -2,6 +2,8 @@ import os
 import re
 import subprocess
 import luigi
+import pickle
+import sys
 
 from fieldpathogenomics.luigi.cluster import ClusterBase
 
@@ -120,3 +122,32 @@ class SlurmExecutableTask(luigi.Task, SlurmMixin):
     def work_script(self):
         """Override this an make it return the shell script to run"""
         pass
+
+
+class SlurmTask(SlurmExecutableTask):
+
+    def work_script(self):
+        python = os.path.join((os.environ['VIRTUAL_ENV']), 'bin', 'activate')
+        return '''#!/bin/bash
+                  source {python}
+                  set -euo pipefail
+                  python -m fieldpathogenomics.luigi.task_runner {task}
+                  '''.format(python=python,
+                             task=self.job_file)
+
+    def _dump(self):
+        """Dump instance to file."""
+        with self.no_unpicklable_properties():
+            self.job_file = os.path.join(self.tmp_dir, 'job-instance.pickle')
+            if self.__module__ == '__main__':
+                d = pickle.dumps(self)
+                module_name = os.path.basename(sys.argv[0]).rsplit('.', 1)[0]
+                d = d.replace('(c__main__', "(c" + module_name)
+                open(self.job_file, "w").write(d)
+            else:
+                pickle.dump(self, open(self.job_file, "w"))
+
+    def run(self):
+        self._dump()
+        super().run()
+

@@ -193,6 +193,7 @@ class GetPhylip(SlurmTask):
 
     def work(self):
         import Bio
+        import Bio.SeqIO
         import contextlib
         import numpy as np
 

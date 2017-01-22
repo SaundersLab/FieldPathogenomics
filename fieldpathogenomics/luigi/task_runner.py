@@ -3,8 +3,8 @@ import sys
 
 
 def main():
-    jobfile = sys.argv[1]
-    job = pickle.load(jobfile)
+    with open(sys.argv[1], 'rb') as jobfile:
+        job = pickle.load(jobfile)
     job.work()
 
 

@@ -491,6 +491,7 @@ class GetRefSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
         return '''#!/bin/bash
                   source jre-8u92
                   source gatk-3.6.0
+                  source vcftools-0.1.13;
                   gatk='{gatk}'
                   set -eo pipefail
 

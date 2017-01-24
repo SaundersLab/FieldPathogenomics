@@ -248,8 +248,8 @@ class Trinity(UVExecutableTask, CheckTargetNonEmpty):
 
 @requires(Trinity)
 class GMAP(CheckTargetNonEmpty, SlurmExecutableTask):
-    gmap_reference_name = luigi.Parameter(defaul='PST130')
-    gmap_reference_path = luigi.Parameter(defaul='/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/gmap')
+    gmap_reference_name = luigi.Parameter(default='PST130')
+    gmap_reference_path = luigi.Parameter(default='/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/gmap')
 
     def __init__(self, *args, **kwargs):
         self.mem = 4000

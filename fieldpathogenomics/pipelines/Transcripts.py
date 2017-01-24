@@ -179,6 +179,9 @@ class CuffMerge(SlurmExecutableTask, CheckTargetNonEmpty):
 
 @inherits(MarkDuplicates)
 class MergeBam(SlurmExecutableTask, CheckTargetNonEmpty):
+    base_dir = luigi.Parameter(significant=False)
+    scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
+
     lib_list = luigi.ListParameter()
     library = None
 
@@ -213,9 +216,6 @@ class MergeBam(SlurmExecutableTask, CheckTargetNonEmpty):
 @requires(MergeBam)
 class Trinity(UVExecutableTask, CheckTargetNonEmpty):
 
-    base_dir = luigi.Parameter(significant=False)
-    scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
@@ -248,6 +248,7 @@ class Trinity(UVExecutableTask, CheckTargetNonEmpty):
 
 @requires(Trinity)
 class GMAP(CheckTargetNonEmpty, SlurmExecutableTask):
+
     gmap_reference_name = luigi.Parameter(default='PST130')
     gmap_reference_path = luigi.Parameter(default='/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/gmap')
 
@@ -444,7 +445,7 @@ class TranscriptsWrapper(luigi.WrapperTask):
     def requires(self):
         yield self.clone(StringTieMerge)
         yield self.clone(CuffMerge)
-        yield self.clone(Trinity)
+        yield self.clone(GMAP)
         yield self.clone(PortcullisJunc)
 
 

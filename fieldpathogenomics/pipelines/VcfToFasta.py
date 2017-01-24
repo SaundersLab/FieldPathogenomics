@@ -177,7 +177,7 @@ class GetConsensusesWrapper(luigi.Task):
 
 
 @requires(GetConsensusesWrapper)
-class GetPhylip(SlurmTask):
+class GetAlignment(SlurmTask):
     min_cov = luigi.FloatParameter(default=0.8)
     min_indvs = luigi.FloatParameter(default=0.8)
 
@@ -189,7 +189,8 @@ class GetPhylip(SlurmTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, self.output_prefix + ".phy"))
+        return {'phy': LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, self.output_prefix + ".phy")),
+                'nex': LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, self.output_prefix + ".nex"))}
 
     def work(self):
         import Bio
@@ -198,7 +199,7 @@ class GetPhylip(SlurmTask):
         import contextlib
         import numpy as np
 
-        with contextlib.ExitStack() as stack, self.output().open('w') as fout:
+        with contextlib.ExitStack() as stack, self.output()['phy'].open('w') as fphy, self.output()['nex'].open('w') as fnex:
 
             fhs = [stack.enter_context(open(fname.path)) for fname in self.input()['iupac-codes']]
             parsers = zip(*[Bio.SeqIO.parse(f, 'fasta') for f in fhs])
@@ -216,10 +217,11 @@ class GetPhylip(SlurmTask):
                         # 3rd codon
                         msa[i] += x.seq[::3]
 
-            Bio.AlignIO.write(Bio.Align.MultipleSeqAlignment(msa), fout, 'phylip-relaxed')
+            Bio.AlignIO.write(Bio.Align.MultipleSeqAlignment(msa), fphy, 'phylip-relaxed')
+            Bio.AlignIO.write(Bio.Align.MultipleSeqAlignment(msa), fnex, 'nexus')
 
 
-@requires(GetPhylip)
+@requires(GetAlignment)
 class RAxML(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -243,7 +245,7 @@ class RAxML(SlurmExecutableTask):
 
                '''.format(output_dir=os.path.join(self.scratch_dir, 'trees', self.output_prefix),
                           n_cpu=self.n_cpu,
-                          input=self.input().path,
+                          input=self.input()['phy'].path,
                           suffix=self.output_prefix)
 
 

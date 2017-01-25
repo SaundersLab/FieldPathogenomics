@@ -231,7 +231,8 @@ class RAxML(SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, 'trees', self.output_prefix + ".phy"))
+        return {'result': LocalTarget(os.path.join(self.scratch_dir, 'trees', "RAxML_result." + self.output_prefix)),
+                'bootstrap': LocalTarget(os.path.join(self.scratch_dir, 'trees', "RAxML_bootstrap." + self.output_prefix))}
 
     def work_script(self):
         return '''#!/bin/bash

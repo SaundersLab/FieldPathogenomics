@@ -330,6 +330,37 @@ class PortcullisJunc(SlurmExecutableTask):
         '''.format(input=self.input().path,
                    output=self.output().path)
 
+
+@inherits(PortcullisJunc)
+@inherits(PortcullisPrep)
+class PortcullisFilter(SlurmExecutableTask):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+
+    def requires(self):
+        return {'prep': self.clone(PortcullisPrep),
+                'junc': self.clone(PortcullisJunc)}
+
+    def output(self):
+        return LocalTarget(os.path.join(self.scratch_dir, 'portcullis_filter'))
+
+    def work_script(self):
+        self.temp = TemporaryFile()
+        return '''#!/bin/bash
+        source portcullis-1.0.0_beta6;
+        set -euo pipefail
+
+        portcullis filter --output {output}_temp/portcullis {prep} {tab}
+
+        mv {output}_temp {output}
+        '''.format(prep=self.input()['prep'].path,
+                   tab=os.path.join(self.input()['junc'].path, 'portcullis.junctions.tab'),
+                   output=self.output().path)
+
 # -----------------------------Strawberry------------------------------- #
 
 

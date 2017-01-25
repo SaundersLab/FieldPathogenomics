@@ -247,12 +247,13 @@ class Trinity(UVExecutableTask, CheckTargetNonEmpty):
 
 
 @requires(Trinity)
-class GMAP(CheckTargetNonEmpty, SlurmExecutableTask):
+class GMAP(SlurmExecutableTask, CheckTargetNonEmpty):
 
     gmap_reference_name = luigi.Parameter(default='PST130')
     gmap_reference_path = luigi.Parameter(default='/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/gmap')
 
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.mem = 4000
         self.n_cpu = 1
         self.partition = 'tgac-medium'
@@ -261,7 +262,7 @@ class GMAP(CheckTargetNonEmpty, SlurmExecutableTask):
         return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'trinity.gtf'))
 
     def work_script(self):
-        return '''!#/bin/bash
+        return '''#!/bin/bash
                 source gmap-20160923;
                 set -euo pipefail
 
@@ -269,8 +270,9 @@ class GMAP(CheckTargetNonEmpty, SlurmExecutableTask):
                 mv {output}.temp {output}
 
                 '''.format(db_path=self.gmap_reference_path,
-                           df=self.gmap_reference_name,
-                           output=self.outfile().path)
+                           db=self.gmap_reference_name,
+                           output=self.output().path,
+                           fasta=self.input().path)
 
 # -----------------------------Portcullis------------------------------- #
 

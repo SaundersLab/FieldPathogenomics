@@ -241,8 +241,10 @@ class RAxML(SlurmExecutableTask):
 
                mkdir -p {output_dir}
                cd {output_dir}
+               rm {output_dir}/RAxML*
 
-               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix} -p 100
+               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix} -p 100 ;
+
                raxmlHPC-PTHREADS-SSE3 -T {n_cpu} –s {input} –m GTRGAMMA –n {suffix}_bootstraps –p 100 –b 1234 –N 10
 
                '''.format(output_dir=os.path.join(self.scratch_dir, 'trees', self.output_prefix),

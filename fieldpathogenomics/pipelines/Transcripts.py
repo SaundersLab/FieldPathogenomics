@@ -363,22 +363,83 @@ class PortcullisFilter(SlurmExecutableTask):
                    tab=os.path.join(self.input()['junc'].path, 'portcullis.junctions.tab'),
                    output=self.output().path)
 
-
-#   ----------------------------------------------------------------------#
+# ----------------------------------------------------------------------#
 
 
 @inherits(CuffMerge)
 @inherits(StringTieMerge)
 @inherits(PortcullisJunc)
 @inherits(GMAP)
-class TranscriptsWrapper(luigi.WrapperTask):
+class TranscriptsWrapper(luigi.Task):
 
     def requires(self):
-        yield self.clone(StringTieMerge)
-        yield self.clone(CuffMerge)
-        yield self.clone(GMAP)
-        yield self.clone(PortcullisJunc)
+        return {'stringtie': self.clone(StringTieMerge),
+                'cufflinks': self.clone(CuffMerge),
+                'trinity': self.clone(GMAP),
+                'portcullis': self.clone(PortcullisJunc)}
 
+    def output(self):
+        return self.input()
+
+# -----------------------------Mikado------------------------------- #
+
+
+@requires(TranscriptsWrapper)
+class MikadoConfigure(SlurmExecutableTask, CheckTargetNonEmpty):
+
+    blast_db = luigi.Parameter()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 1000
+        self.n_cpu = 1
+        self.partition = "tgac-short"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'mikado', 'configuration.yaml'))
+
+    def list(self):
+        '''Mikado requires a table of the transciptome assemblies to use.
+           Construct this from the task input'''
+        l = []
+        for k, v in self.input():
+            if k == 'cufflinks':
+                l.append(v.path + "\tcuff\tTrue")
+            elif k == 'stringtie':
+                l.append(v.path + "\st\tTrue")
+            elif k == 'class':
+                l.append(v.path + "\tcl\tTrue")
+            elif k == 'trinity':
+                l.append(v.path + "\t\tr\tFalse")
+        return l.join("\n")
+
+    def work_script(self):
+        self.temp = TemporaryFile()
+        return '''#!/bin/bash
+                   source mikado-1.0.0b9;
+                   set -euo pipefail
+
+                   echo {list} > {temp}
+
+                   mikado configure --list {temp} \
+                                    --reference {reference} \
+                                    --mode permissive \
+                                    --scoring plants.yaml  \
+                                    --copy-scoring plants.yaml \
+                                    --junctions {portcullis} \
+                                    -bt {db} \
+                                    {output}.temp
+                mv {output}.temp {output}
+                '''.format(list=self.list(),
+                           temp=self.temp.path,
+                           reference=self.reference,
+                           portcullis=os.path.join(self.input()['portcullis'].path, 'junctions.bed'),
+                           db=self.blast_db,
+                           output=self.output().path)
+
+
+# ----------------------------------------------------------------------#
 
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
@@ -405,4 +466,5 @@ if __name__ == '__main__':
 
     luigi.run(['TranscriptsWrapper', '--lib-list', json.dumps(lib_list),
                                      '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
-                                     '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta'] + sys.argv[2:])
+                                     '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
+                                     '--blast_db', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/uniprot.fasta'] + sys.argv[2:])

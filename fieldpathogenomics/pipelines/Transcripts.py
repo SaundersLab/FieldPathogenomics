@@ -315,7 +315,7 @@ class GMAP(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = 'tgac-medium'
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'trinity.gtf'))
+        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'trinity.gff3'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -459,38 +459,38 @@ class MikadoConfigure(SlurmExecutableTask, CheckTargetNonEmpty):
         '''Mikado requires a table of the transciptome assemblies to use.
            Construct this from the task input'''
         l = []
-        for k, v in self.input():
+        for k, v in self.input().items():
             if k == 'cufflinks':
-                l.append(v.path + "\tcuff\tTrue")
+                l.append(v.path + "\tcu\tTrue")
             elif k == 'stringtie':
-                l.append(v.path + "\st\tTrue")
+                l.append(v.path + "\tst\tTrue")
             elif k == 'class':
                 l.append(v.path + "\tcl\tTrue")
             elif k == 'trinity':
-                l.append(v.path + "\t\tr\tFalse")
-        return l.join("\n")
+                l.append(v.path + "\ttr\tFalse")
+        return "\n".join(l)
 
     def work_script(self):
         self.temp = TemporaryFile()
         return '''#!/bin/bash
-                   source mikado-1.0.0b9;
+                   {python}
                    set -euo pipefail
 
-                   echo {list} > {temp}
+                   echo '{list}' > {temp}
 
                    mikado configure --list {temp} \
                                     --reference {reference} \
                                     --mode permissive \
                                     --scoring plants.yaml  \
-                                    --copy-scoring plants.yaml \
                                     --junctions {portcullis} \
                                     -bt {db} \
                                     {output}.temp
                 mv {output}.temp {output}
-                '''.format(list=self.list(),
+                '''.format(python=python,
+                           list=self.list(),
                            temp=self.temp.path,
                            reference=self.reference,
-                           portcullis=os.path.join(self.input()['portcullis'].path, 'junctions.bed'),
+                           portcullis=os.path.join(self.input()['portcullis'].path, 'portcullis.pass.junctions.bed'),
                            db=self.blast_db,
                            output=self.output().path)
 

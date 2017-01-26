@@ -8,7 +8,7 @@ from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
+from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
 from fieldpathogenomics.luigi.uv import UVExecutableTask
 from fieldpathogenomics.utils import CheckTargetNonEmpty
 from fieldpathogenomics.pipelines.Library import MarkDuplicates
@@ -150,7 +150,7 @@ class CuffMerge(SlurmExecutableTask, CheckTargetNonEmpty):
         return [self.clone(Cufflinks, library=lib) for lib in self.lib_list]
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'cufflinks.gtf'))
+        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'cufflinks_raw.gtf'))
 
     def work_script(self):
         self.temp = TemporaryFile()
@@ -164,15 +164,71 @@ class CuffMerge(SlurmExecutableTask, CheckTargetNonEmpty):
 
         echo '{input}' > {temp}
         cd {out_dir}
-        cuffmerge  -p {n_cpu} {temp} -o {out_dir}
+        cuffmerge  -p {n_cpu}  -o {out_dir}  {temp}
 
-        mv {out_dir}/merged_asm/merged.gtf {output}
+        mv {out_dir}/merged.gtf {output}
         '''.format(input="\n".join([x.path for x in self.input()]),
                    output=self.output().path,
                    out_dir=os.path.join(self.scratch_dir, 'cufflinks_merge'),
                    temp=self.temp.path,
-                   n_cpu=self.n_cpu,
-                   )
+                   n_cpu=self.n_cpu,)
+
+
+@requires(CuffMerge)
+class AddTranscripts(SlurmTask):
+    '''The gtf file produced by cuffmerge has no transcript features, not sure why??!
+        This task reconstructs the transcript features use the transcript_id tag of the exons
+        and taking the start/stop of the first/last exons with a given transcript_id is the start/stop '''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 4000
+        self.n_cpu = 1
+        self.partition = "tgac-short"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'cufflinks.gtf'))
+
+    def work(self):
+        import re
+        with self.input().open() as fin, self.output().open('w') as fout:
+            current_tid = None
+            tid = re.compile('transcript_id "(\S+)";')
+            gid = re.compile('gene_id "(\S+)";')
+            exons, start, stop = [], float('inf'), 0
+
+            for line in fin:
+                exon_start, exon_stop = line.split('\t')[3:5]
+                tran = tid.search(line).groups()[0]
+
+                if tran != current_tid:
+                    if current_tid is not None:
+
+                        # Flush previous transcript
+                        template = exons[0].split('\t')
+                        gene = gid.search(exons[0]).groups()[0]
+                        fout.write('\t'.join(template[:2]) +
+                                   '\ttranscript\t{0}\t{1}\t.\t{2}\t.\tgene_id "{3}"; transcript_id "{4}";\n'.format(
+                                   start, stop, template[6], gene, current_tid))
+                        fout.writelines(exons)
+
+                    # And start new one
+                    current_tid = tran
+                    exons, start, stop = [], float('inf'), 0
+
+                exons.append(line)
+                start = min(start, int(exon_start))
+                stop = max(stop, int(exon_stop))
+
+            # Final flush
+            template = exons[0].split('\t')
+            gene = gid.search(exons[0]).groups()[0]
+            fout.write('\t'.join(template[:2]) +
+                       '\ttranscript\t{0}\t{1}\t.\t{2}\t.\tgene_id "{3}"; transcript_id "{4}";\n'.format(
+                       start, stop, template[6], gene, current_tid))
+            fout.writelines(exons)
+
 
 # -----------------------------Trinity------------------------------- #
 
@@ -366,17 +422,17 @@ class PortcullisFilter(SlurmExecutableTask):
 # ----------------------------------------------------------------------#
 
 
-@inherits(CuffMerge)
+@inherits(AddTranscripts)
 @inherits(StringTieMerge)
-@inherits(PortcullisJunc)
+@inherits(PortcullisFilter)
 @inherits(GMAP)
 class TranscriptsWrapper(luigi.Task):
 
     def requires(self):
         return {'stringtie': self.clone(StringTieMerge),
-                'cufflinks': self.clone(CuffMerge),
+                'cufflinks': self.clone(AddTranscripts),
                 'trinity': self.clone(GMAP),
-                'portcullis': self.clone(PortcullisJunc)}
+                'portcullis': self.clone(PortcullisFilter)}
 
     def output(self):
         return self.input()

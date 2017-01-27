@@ -13,6 +13,8 @@ from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
 from fieldpathogenomics.utils import CheckTargetNonEmpty
+from fieldpathogenomics.pipelines.Transcripts import PortcullisFilter
+
 import fieldpathogenomics.utils as utils
 
 import logging
@@ -427,7 +429,38 @@ class MarkDuplicates(CheckTargetNonEmpty, SlurmExecutableTask):
                            picard=picard.format(mem=self.mem * self.n_cpu))
 
 
-@requires(MarkDuplicates)
+@inherits(MarkDuplicates)
+@inherits(PortcullisFilter)
+class PortcullisFilterBam(CheckTargetNonEmpty, SlurmExecutableTask):
+    '''Removes reads correspoding to incorrect splice junctions'''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 4000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+
+    def requires(self):
+        return {'bam': self.clone(MarkDuplicates),
+                'portcullis': self.clone(PortcullisFilter)}
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, self.library + '.portcullis..bam'))
+
+    def work_script(self):
+        return '''#!/bin/bash
+               source portcullis-1.0.0_beta6;
+               set -euo pipefail
+
+               portcullis bamfilt  --output {output}.temp {junc} {bam}
+               mv {output}.temp {output}
+                '''.format(junc=os.path.join(self.input()['portcullis'].path, "portcullis.pass.junctions.bed"),
+                           bam=self.input()['bam'].path,
+                           output=self.output().path)
+
+
+@requires(PortcullisFilterBam)
 class BaseQualityScoreRecalibration(SlurmExecutableTask):
     '''Runs BQSR. Because this requires a set of high quality SNPs to use
     as a ground truth we bootstrap this by first running the pipeline without

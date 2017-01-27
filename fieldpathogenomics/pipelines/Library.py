@@ -13,7 +13,7 @@ from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
 from fieldpathogenomics.utils import CheckTargetNonEmpty
-from fieldpathogenomics.pipelines.Transcripts import PortcullisFilter
+import fieldpathogenomics.pipelines.Transcripts as Transcripts
 
 import fieldpathogenomics.utils as utils
 
@@ -430,7 +430,7 @@ class MarkDuplicates(CheckTargetNonEmpty, SlurmExecutableTask):
 
 
 @inherits(MarkDuplicates)
-@inherits(PortcullisFilter)
+@inherits(Transcripts.PortcullisFilter)
 class PortcullisFilterBam(CheckTargetNonEmpty, SlurmExecutableTask):
     '''Removes reads correspoding to incorrect splice junctions'''
 

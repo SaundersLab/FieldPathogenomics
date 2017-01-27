@@ -11,7 +11,7 @@ from luigi.file import TemporaryFile
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
 from fieldpathogenomics.luigi.uv import UVExecutableTask
 from fieldpathogenomics.utils import CheckTargetNonEmpty
-from fieldpathogenomics.pipelines.Library import MarkDuplicates
+import fieldpathogenomics.pipelines.Library as Library
 
 import logging
 logger = logging.getLogger('luigi-interface')
@@ -33,7 +33,7 @@ os.makedirs(log_dir, exist_ok=True)
 # -----------------------------StringTie------------------------------- #
 
 
-@requires(MarkDuplicates)
+@requires(Library.MarkDuplicates)
 class StringTie(SlurmExecutableTask, CheckTargetNonEmpty):
 
     library = luigi.Parameter()
@@ -103,7 +103,7 @@ class StringTieMerge(SlurmExecutableTask, CheckTargetNonEmpty):
 # -----------------------------Cufflinks------------------------------- #
 
 
-@requires(MarkDuplicates)
+@requires(Library.MarkDuplicates)
 class Cufflinks(SlurmExecutableTask, CheckTargetNonEmpty):
 
     base_dir = luigi.Parameter(significant=False)
@@ -233,7 +233,7 @@ class AddTranscripts(SlurmTask):
 # -----------------------------Trinity------------------------------- #
 
 
-@inherits(MarkDuplicates)
+@inherits(Library.MarkDuplicates)
 class MergeBam(SlurmExecutableTask, CheckTargetNonEmpty):
     base_dir = luigi.Parameter(significant=False)
     scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
@@ -249,7 +249,7 @@ class MergeBam(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def requires(self):
-        return [self.clone(MarkDuplicates, library=lib) for lib in self.lib_list]
+        return [self.clone(Library.MarkDuplicates, library=lib) for lib in self.lib_list]
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, 'merged.bam'))

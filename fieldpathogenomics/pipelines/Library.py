@@ -427,25 +427,45 @@ class MarkDuplicates(CheckTargetNonEmpty, SlurmExecutableTask):
                            picard=picard.format(mem=self.mem * self.n_cpu))
 
 
-import fieldpathogenomics.pipelines.Transcripts
-@inherits(MarkDuplicates)
-@inherits(fieldpathogenomics.pipelines.Transcripts.PortcullisFilter)
-class PortcullisFilterBam(CheckTargetNonEmpty, SlurmExecutableTask):
+@requires(MarkDuplicates)
+class PortcullisFilterBam(SlurmExecutableTask):
     '''Removes reads correspoding to incorrect splice junctions'''
+
+    portcullis_junc = luigi.Parameter(default='')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 4000
+        self.mem = 8000
         self.n_cpu = 1
         self.partition = "tgac-medium"
 
-    def requires(self):
-        return {'bam': self.clone(MarkDuplicates),
-                'portcullis': self.clone(PortcullisFilter)}
-
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, self.library + '.portcullis..bam'))
+        if self.portcullis_junc == '':
+            return self.input()
+        else:
+            return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'portcullis.bam'))
+
+    def on_success(self):
+        if self.portcullis_junc == '':
+            luigi.Task.on_success(self)
+        else:
+            SlurmExecutableTask.on_success(self)
+
+    def on_failure(self, e):
+        if self.portcullis_junc == '':
+            luigi.Task.on_failure(self, e)
+        else:
+            SlurmExecutableTask.on_failure(self, e)
+
+    def run(self):
+        if self.portcullis_junc == '':
+            logger.info("Not running PortcullisFilterBam as no portcullis_junc given")
+
+        else:
+            logger.info(
+                "Running PortcullisFilterBam recalibration using portcullis_junc " + self.portcullis_junc)
+            super().run()
 
     def work_script(self):
         return '''#!/bin/bash
@@ -454,8 +474,8 @@ class PortcullisFilterBam(CheckTargetNonEmpty, SlurmExecutableTask):
 
                portcullis bamfilt  --output {output}.temp {junc} {bam}
                mv {output}.temp {output}
-                '''.format(junc=os.path.join(self.input()['portcullis'].path, "portcullis.pass.junctions.bed"),
-                           bam=self.input()['bam'].path,
+                '''.format(junc=self.portcullis_junc,
+                           bam=self.input().path,
                            output=self.output().path)
 
 

@@ -19,6 +19,8 @@ gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/
 trimmomatic = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/trimmomatic/0.36/x86_64/bin/trimmomatic-0.36.jar "
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
+FILE_HASH = utils.file_hash(__file__)
+PIPELINE = os.path.basename(__file__)
 
 '''
 
@@ -42,10 +44,8 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
 
     library = luigi.Parameter()
     base_dir = luigi.Parameter(significant=False)
-    scratch_dir = luigi.Parameter(
-        default="/tgac/scratch/buntingd/", significant=False)
-    read_dir = luigi.Parameter(
-        default="/tgac/data/reads/*DianeSaunders*", significant=False)
+    scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
+    read_dir = luigi.Parameter(default="/tgac/data/reads/*DianeSaunders*", significant=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -55,10 +55,8 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        LocalTarget(os.path.join(self.scratch_dir,
-                                 self.library, "raw_R1.fastq.gz")).makedirs()
-        return [LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R1.fastq.gz")),
-                LocalTarget(os.path.join(self.scratch_dir, self.library, "raw_R2.fastq.gz"))]
+        return [LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, "raw_R1.fastq.gz")),
+                LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, "raw_R2.fastq.gz"))]
 
     def work_script(self):
         return '''#!/bin/bash -e
@@ -86,9 +84,9 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return [LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R1.fastq.gz")),
-                LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R2.fastq.gz")),
-                LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, self.library + "_trimmomatic.txt"))]
+        return [LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, "filtered_R1.fastq.gz")),
+                LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, "filtered_R2.fastq.gz")),
+                LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, self.library + "_trimmomatic.txt"))]
 
     def work_script(self):
         return '''#!/bin/bash
@@ -106,7 +104,7 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
                mv temp_2P.fastq.gz {R2_out}
                mv {log}.temp {log}
 
-                '''.format(scratch_dir=os.path.join(self.scratch_dir, self.library),
+                '''.format(scratch_dir=os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library),
                            trimmomatic=trimmomatic.format(
                                mem=self.mem * self.n_cpu),
                            log=self.output()[2].path,
@@ -130,7 +128,7 @@ class FastxQC(SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        working_dir = os.path.join(self.base_dir, 'libraries', self.library)
+        working_dir = os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library)
         return {'stats_R1': LocalTarget(os.path.join(working_dir, 'QC', self.library + "_R1_stats.txt")),
                 'stats_R2': LocalTarget(os.path.join(working_dir, 'QC', self.library + "_R2_stats.txt")),
                 'boxplot_R1': LocalTarget(os.path.join(working_dir, 'QC', self.library + "_R1_quality.png")),
@@ -175,8 +173,8 @@ class FastxTrimmer(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return [LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R1.fastq.gz")),
-                LocalTarget(os.path.join(self.scratch_dir, self.library, "filtered_R2.fastq.gz"))]
+        return [LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, "filtered_R1.fastq.gz")),
+                LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, "filtered_R2.fastq.gz"))]
 
     def work_script(self):
         return '''#!/bin/bash
@@ -208,8 +206,8 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
 
     def output(self):
         return {
-            'star_bam': LocalTarget(os.path.join(self.scratch_dir, self.library, 'Aligned.sortedByCoord.out.bam')),
-            'star_log': LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'Log.final.out'))
+            'star_bam': LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, 'Aligned.sortedByCoord.out.bam')),
+            'star_log': LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, 'Log.final.out'))
         }
 
     def work_script(self):
@@ -232,8 +230,7 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
 
                   '''.format(star_bam=self.output()['star_bam'].path,
                              star_log=self.output()['star_log'].path,
-                             scratch_dir=os.path.join(
-                                 self.scratch_dir, self.library),
+                             scratch_dir=os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library),
                              star_genome=self.star_genome,
                              n_cpu=self.n_cpu,
                              R1=self.input()[0].path,
@@ -251,8 +248,8 @@ class FastQC(CheckTargetNonEmpty, SlurmExecutableTask):
             self.partition = "tgac-medium"
 
         def output(self):
-            return [LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'QC', 'R1', 'fastqc_data.txt')),
-                    LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'QC', 'R2', 'fastqc_data.txt'))]
+            return [LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, 'QC', 'R1', 'fastqc_data.txt')),
+                    LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, 'QC', 'R2', 'fastqc_data.txt'))]
 
         def work_script(self):
             return '''#!/bin/bash
@@ -271,7 +268,7 @@ class FastQC(CheckTargetNonEmpty, SlurmExecutableTask):
 
                     mv {R1_out}.temp {R1_out}
                     mv {R2_out}.temp {R2_out}
-                    '''.format(output_dir=os.path.join(self.scratch_dir, self.library, 'FastQC'),
+                    '''.format(output_dir=os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, 'FastQC'),
                                R1_in=self.input()[0].path,
                                R2_in=self.input()[1].path,
                                lib=self.library,
@@ -339,7 +336,7 @@ class CleanSam(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, self.library, 'Aligned.out_cleaned.bam'))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, 'Aligned.out_cleaned.bam'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -368,7 +365,7 @@ class AddReadGroups(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, self.library, 'rg_added_sorted.bam'))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, 'rg_added_sorted.bam'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -398,7 +395,7 @@ class MarkDuplicates(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, self.library + '.bam'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, self.library + '.bam'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -432,7 +429,7 @@ class PortcullisFilterBam(SlurmExecutableTask):
         if self.portcullis_junc == '':
             return self.input()
         else:
-            return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'portcullis.bam'))
+            return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, 'portcullis.bam'))
 
     def on_success(self):
         if self.portcullis_junc == '':
@@ -488,7 +485,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
         if self.snp_db == '':
             return self.input()
         else:
-            return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'recalibrated.bam'))
+            return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, 'recalibrated.bam'))
 
     def on_success(self):
         if self.snp_db == '':
@@ -512,8 +509,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
             super().run()
 
     def work_script(self):
-        recal = os.path.join(self.base_dir, 'libraries',
-                             self.library, self.library + "_recal.tsv")
+        recal = os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, self.library + "_recal.tsv")
         return '''#!/bin/bash
                   source jre-8u92
                   source gatk-3.6.0
@@ -544,7 +540,7 @@ class SplitNCigarReads(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, self.library, 'split.bam'))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, 'split.bam'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -578,7 +574,7 @@ class HaplotypeCaller(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, self.library + ".g.vcf"))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, self.library + ".g.vcf"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -625,11 +621,11 @@ class CleanUpLib(luigi.Task):
     priority = 100
 
     def run(self):
-        shutil.rmtree(os.path.join(self.scratch_dir,
+        shutil.rmtree(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH,
                                    self.library), ignore_errors=True)
 
     def complete(self):
-        return self.clone_parent().complete() and not os.path.exists(os.path.join(self.scratch_dir, self.library))
+        return self.clone_parent().complete() and not os.path.exists(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library))
 
 
 @inherits(CleanUpLib)
@@ -652,7 +648,7 @@ class LibraryBatchWrapper(luigi.WrapperTask):
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
     logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
-                                           pipeline_name=os.path.basename(__file__))
+                                           pipeline_name=PIPELINE)
 
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]

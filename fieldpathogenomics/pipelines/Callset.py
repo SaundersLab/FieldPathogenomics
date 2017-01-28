@@ -13,6 +13,7 @@ from fieldpathogenomics.utils import CheckTargetNonEmpty
 from fieldpathogenomics.SGUtils import ScatterBED, GatherVCF, ScatterVCF, GatherTSV
 from fieldpathogenomics.luigi.scattergather import ScatterGather
 import fieldpathogenomics.utils as utils
+import fieldpathogenomics.picard.Library as Library
 
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
@@ -44,19 +45,21 @@ class GenomeContigs(luigi.ExternalTask):
         return LocalTarget(self.mask)
 
 
-class gVCFs(luigi.ExternalTask):
-    '''For each lib in lib_list get its gVCF'''
-    lib_list = luigi.ListParameter()
-    gVCF_dir = luigi.Parameter()
+@inherits(Library.HaplotypeCaller)
+class gVCFs(luigi.Task, CheckTargetNonEmpty):
+    base_dir = luigi.Parameter(significant=False)
+    scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
 
     output_prefix = luigi.Parameter()
-    base_dir = luigi.Parameter(significant=False)
-    scratch_dir = luigi.Parameter(
-        default="/tgac/scratch/buntingd/", significant=False)
     reference = luigi.Parameter()
+    lib_list = luigi.ListParameter()
+    library = None
+
+    def requires(self):
+        return [self.clone(Library.HaplotypeCaller, library=lib) for lib in self.lib_list]
 
     def output(self):
-        return [LocalTarget(os.path.join(self.gVCF_dir, lib, lib + '.g.vcf')) for lib in self.lib_list]
+        return self.input()
 
 
 @requires(gVCFs)

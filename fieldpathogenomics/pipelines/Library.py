@@ -445,12 +445,7 @@ class PortcullisFilterBam(SlurmExecutableTask):
             SlurmExecutableTask.on_failure(self, e)
 
     def run(self):
-        if self.portcullis_junc == '':
-            logger.info("Not running PortcullisFilterBam as no portcullis_junc given")
-
-        else:
-            logger.info(
-                "Running PortcullisFilterBam recalibration using portcullis_junc " + self.portcullis_junc)
+        if self.portcullis_junc != '':
             super().run()
 
     def work_script(self):
@@ -501,12 +496,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
             SlurmExecutableTask.on_failure(self, e)
 
     def run(self):
-        if self.snp_db == '':
-            logger.info("Not running BQSR as no snp_db given")
-
-        else:
-            logger.info(
-                "Running BQSR recalibration using bootstrapped snp_db " + self.snp_db)
+        if self.snp_db != '':
             super().run()
 
     def work_script(self):

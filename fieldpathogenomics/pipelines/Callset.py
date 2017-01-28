@@ -12,6 +12,8 @@ from luigi.file import TemporaryFile
 from fieldpathogenomics.utils import CheckTargetNonEmpty
 from fieldpathogenomics.SGUtils import ScatterBED, GatherVCF, ScatterVCF, GatherTSV
 from fieldpathogenomics.luigi.scattergather import ScatterGather
+from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
+
 import fieldpathogenomics.utils as utils
 import fieldpathogenomics.pipelines.Library as Library
 
@@ -242,7 +244,7 @@ class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
 @inherits(VcfToolsFilter)
-class GetSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
+class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
     '''Extracts just sites with only biallelic SNPs that have a least one variant isolate'''
 
     def requires(self):
@@ -256,7 +258,7 @@ class GetSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_SNPs.vcf.gz"))
+        return CommittedTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_SNPs.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -439,7 +441,7 @@ class GetINDELs(SlurmExecutableTask, CheckTargetNonEmpty):
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
 @inherits(VcfToolsFilter)
-class GetRefSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
+class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
     '''Create a VCF with SNPs and include sites that are reference like in all samples'''
 
     def requires(self):
@@ -453,7 +455,7 @@ class GetRefSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_RefSNPs.vcf.gz"))
+        return CommittedTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_RefSNPs.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash

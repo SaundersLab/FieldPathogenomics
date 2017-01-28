@@ -18,6 +18,9 @@ snpsift = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4
 
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
+FILE_HASH = utils.file_hash(__file__)
+PIPELINE = os.path.basename(__file__)
+
 
 @requires(GetRefSNPs)
 class ConvertToBCF(SlurmExecutableTask, CheckTargetNonEmpty):

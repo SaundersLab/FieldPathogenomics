@@ -16,6 +16,9 @@ import fieldpathogenomics.pipelines.Library as Library
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
+FILE_HASH = utils.file_hash(__file__)
+PIPELINE = os.path.basename(__file__).split('.')[0]
+
 # -----------------------------StringTie------------------------------- #
 
 

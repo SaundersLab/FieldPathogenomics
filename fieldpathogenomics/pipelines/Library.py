@@ -601,9 +601,12 @@ class PerLibPipeline(luigi.WrapperTask):
     '''Wrapper task that runs all tasks on a single library'''
 
     def requires(self):
-        yield self.clone(CombinedQC)
-        yield self.clone(HaplotypeCaller)
-        yield self.clone(SplitNCigarReads)
+        return {'qc': self.clone(CombinedQC),
+                'gvcf': self.clone(HaplotypeCaller),
+                'bam': self.clone(SplitNCigarReads)}
+
+    def output(self):
+        return self.input()
 
 
 @requires(PerLibPipeline)
@@ -617,6 +620,9 @@ class CleanUpLib(luigi.Task):
     def complete(self):
         return self.clone_parent().complete() and not os.path.exists(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library))
 
+    def output(self):
+        return self.input()
+
 
 @inherits(CleanUpLib)
 class LibraryBatchWrapper(luigi.WrapperTask):
@@ -628,8 +634,10 @@ class LibraryBatchWrapper(luigi.WrapperTask):
     library = None
 
     def requires(self):
-        for lib in self.lib_list:
-            yield self.clone_parent(library=lib.rstrip())
+        return [self.clone_parent(library=lib.rstrip()) for lib in self.lib_list]
+
+    def output(self):
+        return self.input()
 
 
 # ----------------------------------------------------------------------- #

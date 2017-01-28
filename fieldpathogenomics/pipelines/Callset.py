@@ -50,7 +50,7 @@ class GenomeContigs(luigi.ExternalTask):
         return LocalTarget(self.mask)
 
 
-@inherits(Library.HaplotypeCaller)
+@inherits(Library.CleanUpLib)
 class gVCFs(luigi.Task, CheckTargetNonEmpty):
     base_dir = luigi.Parameter(significant=False)
     scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
@@ -61,10 +61,10 @@ class gVCFs(luigi.Task, CheckTargetNonEmpty):
     library = None
 
     def requires(self):
-        return [self.clone(Library.HaplotypeCaller, library=lib) for lib in self.lib_list]
+        return [self.clone(Library.CleanUpLib, library=lib) for lib in self.lib_list]
 
     def output(self):
-        return self.input()
+        return [x['gvcf'] for x in self.input()]
 
 
 @requires(gVCFs)

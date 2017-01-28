@@ -6,12 +6,13 @@ import sqlalchemy
 
 import luigi
 from luigi.contrib import sqla
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
 from luigi.util import requires, inherits
 from luigi import LocalTarget
-from luigi.file import TemporaryFile
 
+from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
 from fieldpathogenomics.utils import CheckTargetNonEmpty
+from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
+
 import fieldpathogenomics.utils as utils
 
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
@@ -384,7 +385,7 @@ class AddReadGroups(CheckTargetNonEmpty, SlurmExecutableTask):
 
 
 @requires(AddReadGroups)
-class MarkDuplicates(CheckTargetNonEmpty, SlurmExecutableTask):
+class MarkDuplicates(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
     '''Marks optical/PCR duplicates'''
 
     def __init__(self, *args, **kwargs):
@@ -395,7 +396,7 @@ class MarkDuplicates(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, self.library + '.bam'))
+        return CommittedTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, self.library + '.bam'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -563,7 +564,7 @@ class SplitNCigarReads(CheckTargetNonEmpty, SlurmExecutableTask):
 
 
 @requires(SplitNCigarReads)
-class HaplotypeCaller(CheckTargetNonEmpty, SlurmExecutableTask):
+class HaplotypeCaller(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
     '''Per sample SNP calling'''
 
     def __init__(self, *args, **kwargs):
@@ -574,7 +575,7 @@ class HaplotypeCaller(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, self.library + ".g.vcf"))
+        return CommittedTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'libraries', self.library, self.library + ".g.vcf"))
 
     def work_script(self):
         return '''#!/bin/bash

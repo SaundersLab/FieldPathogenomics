@@ -601,7 +601,6 @@ class CombinedQC(luigi.WrapperTask):
     def requires(self):
         yield self.clone(FastQC)
         yield self.clone(FastxQC)
-        yield self.clone(HaplotypeCaller)
 
 
 @inherits(SplitNCigarReads)

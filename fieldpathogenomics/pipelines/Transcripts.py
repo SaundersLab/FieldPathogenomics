@@ -663,6 +663,36 @@ class MikadoPick(CheckTargetNonEmpty, SlurmExecutableTask):
                            conf=self.input()['conf'].path)
 
 
+@requires(MikadoPick)
+class MikadoCompare(CheckTargetNonEmpty, SlurmExecutableTask):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 1500
+        self.n_cpu = 1
+        self.partition = "tgac-short"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'mikado', 'mikado.gff'))
+
+    def work_script(self):
+        return '''#!/bin/bash
+                  {python}
+                  set -euo pipefail
+                  cd {output_dir}
+
+                  mikado pick -p {n_cpu} --json-conf {conf} -db {db} --loci_out {output}.temp --log /dev/stderr
+
+                  mv {output}.temp.gff3 {output}
+                '''.format(python=python,
+                           n_cpu=self.n_cpu,
+                           output_dir=os.path.split(self.output().path)[0],
+                           gff=self.input()['prep']['gtf'].path,
+                           db=self.input()['db'].path,
+                           output=self.output().path,
+                           conf=self.input()['conf'].path)
+
 # ----------------------------------------------------------------------#
 
 
@@ -690,6 +720,6 @@ if __name__ == '__main__':
         lib_list = [line.rstrip() for line in libs_file]
 
     luigi.run(['MikadoPick', '--lib-list', json.dumps(lib_list),
-                                     '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
-                                     '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
-                                     '--blast-db', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/uniprot/pst_uniprot.fasta'] + sys.argv[2:])
+                             '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
+                             '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
+                             '--blast-db', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/uniprot/pst_uniprot.fasta'] + sys.argv[2:])

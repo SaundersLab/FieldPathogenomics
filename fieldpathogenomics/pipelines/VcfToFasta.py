@@ -18,13 +18,6 @@ snpsift = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4
 
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
-# Ugly hack
-script_dir = os.path.join(os.path.split(
-    os.path.split(__file__)[0])[0], 'scripts')
-log_dir = os.path.join(os.path.split(
-    os.path.split(os.path.split(__file__)[0])[0])[0], 'logs')
-os.makedirs(log_dir, exist_ok=True)
-
 
 @requires(GetRefSNPs)
 class ConvertToBCF(SlurmExecutableTask, CheckTargetNonEmpty):

@@ -21,13 +21,6 @@ snpsift = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4
 
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
-# Ugly hack
-script_dir = os.path.join(os.path.split(
-    os.path.split(__file__)[0])[0], 'scripts')
-log_dir = os.path.join(os.path.split(
-    os.path.split(os.path.split(__file__)[0])[0])[0], 'logs')
-os.makedirs(log_dir, exist_ok=True)
-
 '''
 Guidelines for harmonious living:
 --------------------------------
@@ -195,31 +188,6 @@ class VariantsToTable(SlurmExecutableTask, CheckTargetNonEmpty):
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 
 
-@requires(VariantsToTable)
-class PlotCallsetQC(SlurmExecutableTask, CheckTargetNonEmpty):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Set the SLURM request params for this task
-        self.mem = 16000
-        self.n_cpu = 1
-        self.partition = "tgac-medium"
-
-    def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'callsets', self.output_prefix, 'QC', self.output_prefix + ".pdf"))
-
-    def work_script(self):
-        return '''#!/bin/bash
-                    {python}
-                    python {script_dir}/PlotCallsetQC.py {input} {output}.temp.pdf
-
-                    mv {output}.temp.pdf {output}
-                '''.format(python=python,
-                           input=self.input().path,
-                           output=self.output().path,
-                           script_dir=script_dir)
-
-
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
 @inherits(GenotypeGVCF)
 class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
@@ -322,8 +290,7 @@ class VCFtoHDF5(SlurmExecutableTask):
 
     def work_script(self):
         self.temp1 = TemporaryFile()
-        cache_dir = os.path.join(
-            self.script_dir, self.output_prefix, 'SNPs.hd5.cache')
+        cache_dir = os.path.join(self.scratch_dir, self.output_prefix, 'SNPs.hd5.cache')
         os.makedirs(cache_dir)
         return '''#!/bin/bash
                 {python}
@@ -512,14 +479,14 @@ class GetRefSNPs(SlurmExecutableTask, CheckTargetNonEmpty):
 @inherits(GetSyn)
 @inherits(GetRefSNPs)
 @inherits(GetINDELs)
-@inherits(PlotCallsetQC)
+@inherits(VariantsToTable)
 @inherits(VariantsEval)
 class CallsetWrapper(luigi.WrapperTask):
 
     def requires(self):
         yield self.clone(GetINDELs)
         yield self.clone(GetSyn)
-        yield self.clone(PlotCallsetQC)
+        yield self.clone(VariantsToTable)
         yield self.clone(VariantsEval)
         yield self.clone(GetRefSNPs)
 

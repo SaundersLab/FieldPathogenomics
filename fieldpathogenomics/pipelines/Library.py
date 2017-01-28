@@ -596,47 +596,8 @@ class HaplotypeCaller(CheckTargetNonEmpty, SlurmExecutableTask):
                    reference=self.reference)
 
 
-@requires(HaplotypeCaller)
-class PlotAlleleFreq(SlurmExecutableTask):
-    '''Make plots of the ranked allele frequencies to identify mixed isolates'''
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Set the SLURM request params for this task
-        self.mem = 4000
-        self.n_cpu = 1
-        self.partition = "tgac-medium"
-
-    def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'QC', self.library + "_allele_freqs.pdf"))
-
-    def work_script(self):
-        self.temp1 = TemporaryFile()
-        self.temp2 = TemporaryFile()
-        return '''#!/bin/bash
-                source jre-8u92
-                {python}
-                source gatk-3.6.0
-                gatk='{gatk}'
-                set -euo pipefail
-
-                $gatk -T VariantsToTable -R {reference} -AMD -V {input} -F CHROM -F POS -F REF -F ALT -F DP -GF AD  --out {temp1}
-                grep -ve "NA" <  {temp1}  > {temp2}
-
-                python {script_dir}/plotAF.py {temp2} {output}
-                '''.format(python=python,
-                           script_dir=script_dir,
-                           gatk=gatk.format(mem=self.mem * self.n_cpu),
-                           reference=self.reference,
-                           input=self.input().path,
-                           output=self.output().path,
-                           temp1=self.temp1.path,
-                           temp2=self.temp2.path)
-
-
 @inherits(Trimmomatic)
 @inherits(FastxQC)
-@inherits(PlotAlleleFreq)
 @inherits(FastQC)
 class CombinedQC(luigi.WrapperTask):
     '''Wrapper task that runs all the QC type tasks library'''
@@ -645,7 +606,6 @@ class CombinedQC(luigi.WrapperTask):
         yield self.clone(FastQC)
         yield self.clone(FastxQC)
         yield self.clone(HaplotypeCaller)
-        yield self.clone(PlotAlleleFreq)
 
 
 @inherits(SplitNCigarReads)

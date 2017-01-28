@@ -2,7 +2,6 @@ import os
 import sys
 import json
 import shutil
-import time
 import sqlalchemy
 
 import luigi
@@ -15,22 +14,11 @@ from luigi.file import TemporaryFile
 from fieldpathogenomics.utils import CheckTargetNonEmpty
 import fieldpathogenomics.utils as utils
 
-import logging
-logger = logging.getLogger('luigi-interface')
-alloc_log = logging.getLogger('alloc_log')
-alloc_log.setLevel(logging.DEBUG)
-
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
 trimmomatic = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/trimmomatic/0.36/x86_64/bin/trimmomatic-0.36.jar "
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
-# Ugly hack
-script_dir = os.path.join(os.path.split(
-    os.path.split(__file__)[0])[0], 'scripts')
-log_dir = os.path.join(os.path.split(
-    os.path.split(os.path.split(__file__)[0])[0])[0], 'logs')
-os.makedirs(log_dir, exist_ok=True)
 
 '''
 
@@ -703,23 +691,8 @@ class LibraryBatchWrapper(luigi.WrapperTask):
 
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
-    logging.disable(logging.DEBUG)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-
-    fh = logging.FileHandler(os.path.join(
-        log_dir, os.path.basename(__file__) + "_" + timestr + ".log"))
-    fh.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-
-    alloc_fh = logging.FileHandler(os.path.join(
-        log_dir, os.path.basename(__file__) + "_" + timestr + ".salloc.log"))
-    alloc_fh.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(message)s')
-    alloc_fh.setFormatter(formatter)
-    alloc_log.addHandler(alloc_fh)
+    logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
+                                           pipeline_name=os.path.basename(__file__))
 
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]

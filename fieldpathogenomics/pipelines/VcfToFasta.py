@@ -1,20 +1,15 @@
 import os
 import sys
 import json
-import time
 
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
 from fieldpathogenomics.pipelines.Callset import GetRefSNPs
 from fieldpathogenomics.utils import CheckTargetNonEmpty
+import fieldpathogenomics.utils as utils
 
 import luigi
 from luigi.util import requires, inherits
 from luigi import LocalTarget
-
-import logging
-logger = logging.getLogger('luigi-interface')
-alloc_log = logging.getLogger('alloc_log')
-alloc_log.setLevel(logging.DEBUG)
 
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
@@ -255,23 +250,8 @@ class RAxML(SlurmExecutableTask):
 
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
-    logging.disable(logging.DEBUG)
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-
-    fh = logging.FileHandler(os.path.join(
-        log_dir, os.path.basename(__file__) + "_" + timestr + ".log"))
-    fh.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-
-    alloc_fh = logging.FileHandler(os.path.join(
-        log_dir, os.path.basename(__file__) + "_" + timestr + ".salloc.log"))
-    alloc_fh.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(message)s')
-    alloc_fh.setFormatter(formatter)
-    alloc_log.addHandler(alloc_fh)
+    logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
+                                           pipeline_name=os.path.basename(__file__))
 
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]
@@ -279,7 +259,7 @@ if __name__ == '__main__':
     name = os.path.split(sys.argv[1])[1].split('.', 1)[0]
 
     luigi.run(['RAxML', '--output-prefix', name,
-                         '--lib-list', json.dumps(lib_list),
-                         '--gff', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/PST_genes_final.gff3',
-                         '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
-                         '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])
+                        '--lib-list', json.dumps(lib_list),
+                        '--gff', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/PST_genes_final.gff3',
+                        '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
+                        '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])

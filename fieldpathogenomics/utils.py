@@ -7,6 +7,37 @@ import pandas as pd
 import hashlib
 import inspect
 import zlib
+import logging
+import time
+
+###############################################################################
+#                             Pipeline init                                   #
+###############################################################################
+
+
+def logging_init(log_dir, pipeline_name):
+    os.makedirs(log_dir, exist_ok=True)
+    logger = logging.getLogger('luigi-interface')
+    alloc_log = logging.getLogger('alloc_log')
+
+    logging.disable(logging.DEBUG)
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+
+    fh = logging.FileHandler(os.path.join(log_dir, pipeline_name + "_" + timestr + ".log"))
+    fh.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    alloc_fh = logging.FileHandler(os.path.join(log_dir, pipeline_name + "_" + timestr + ".salloc.log"))
+    alloc_fh.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(message)s')
+    alloc_fh.setFormatter(formatter)
+    alloc_log.addHandler(alloc_fh)
+
+    return logger, alloc_log
+
+
 
 ###############################################################################
 #                                 Checksum                                   #

@@ -13,7 +13,7 @@ from fieldpathogenomics.utils import CheckTargetNonEmpty
 from fieldpathogenomics.SGUtils import ScatterBED, GatherVCF, ScatterVCF, GatherTSV
 from fieldpathogenomics.luigi.scattergather import ScatterGather
 import fieldpathogenomics.utils as utils
-import fieldpathogenomics.picard.Library as Library
+import fieldpathogenomics.pipelines.Library as Library
 
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
 gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
@@ -21,6 +21,7 @@ snpeff = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4.
 snpsift = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4.3g/x86_64/SnpSift.jar "
 
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
+
 
 '''
 Guidelines for harmonious living:

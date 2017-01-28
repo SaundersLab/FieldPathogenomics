@@ -279,7 +279,7 @@ if __name__ == '__main__':
     name = os.path.split(sys.argv[1])[1].split('.', 1)[0]
 
     luigi.run(['RAxML', '--output-prefix', name,
-                                        '--lib-list', json.dumps(lib_list),
-                                        '--gff', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/PST_genes_final.gff3',
-                                        '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
-                                        '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])
+                         '--lib-list', json.dumps(lib_list),
+                         '--gff', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/PST_genes_final.gff3',
+                         '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
+                         '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])

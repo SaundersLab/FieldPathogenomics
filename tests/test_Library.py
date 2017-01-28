@@ -2,11 +2,14 @@ import unittest
 import luigi
 import os
 import subprocess
+import logging
 
 import fieldpathogenomics.pipelines.Library as Library
 
 test_dir = os.path.split(__file__)[0]
 
+logger = logging.getLogger('luigi-interface')
+alloc_log = logging.getLogger('alloc_log')
 
 class TestPerLibPipeline(unittest.TestCase):
     '''Does an end to end test of the pipeline using

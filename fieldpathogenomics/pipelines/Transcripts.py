@@ -495,7 +495,176 @@ class MikadoConfigure(SlurmExecutableTask, CheckTargetNonEmpty):
                            output=self.output().path)
 
 
+@requires(MikadoConfigure)
+class MikadoPrepare(CheckTargetNonEmpty, SlurmExecutableTask):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-short"
+
+    def output(self):
+        return {'gtf': LocalTarget(os.path.join(self.base_dir, 'transcripts', 'mikado', 'mikado_prepared.gtf')),
+                'fasta': LocalTarget(os.path.join(self.base_dir, 'transcripts', 'mikado', 'mikado_prepared.fasta'))}
+
+    def work_script(self):
+        return '''#!/bin/bash
+                  {python}
+                  set -euo pipefail
+
+                  mikado prepare  --strip_cds  -o {gtf}.temp -of {fasta}.temp --json-conf {conf} --log /dev/stderr
+
+                  mv {gtf}.temp {gtf}
+                  mv {fasta}.temp {fasta}
+                '''.format(python=python,
+                           gtf=self.output()['gtf'].path,
+                           fasta=self.output()['fasta'].path,
+                           conf=self.input().path)
+
+
+@requires(MikadoPrepare)
+class BLAST(SlurmExecutableTask, CheckTargetNonEmpty):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 750
+        self.n_cpu = 12
+        self.partition = "tgac-medium"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'mikado', 'blast.xml.gz'))
+
+    def work_script(self):
+        return '''#!/bin/bash
+                  source ncbi_blast+-2.2.30;
+                  set -euo pipefail
+
+                  blastx -max_target_seqs 5 \
+                         -num_threads {n_cpu} \
+                         -query {input} \
+                         -outfmt 5 \
+                         -db {blast_db} \
+                         -evalue 0.000001 | sed '/^$/d' | gzip -c  > {output}.temp
+
+                mv {output}.temp {output}
+               '''.format(n_cpu=self.n_cpu,
+                          input=self.input()['fasta'].path,
+                          blast_db=self.blast_db,
+                          output=self.output().path)
+
+
+@requires(MikadoPrepare)
+class TransDecoder(SlurmExecutableTask, CheckTargetNonEmpty):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 1000
+        self.n_cpu = 4
+        self.partition = "tgac-medium"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'mikado', 'orfs.bed'))
+
+    def work_script(self):
+        return '''#!/bin/bash
+                  source transdecoder-3.0.0
+                  set -euo pipefail
+                  mkdir -p {scratch}/transdecoder
+                  cd {scratch}/transdecoder
+
+                  TransDecoder.LongOrfs -t {input} 2> lo_log.txt
+                  TransDecoder.Predict -t {input} --cpu {n_cpu}  2> pred_log.txt
+
+                   mv {scratch}/transdecoder/{prefix}.transdecoder.bed {output}
+               '''.format(input=self.input()['fasta'].path,
+                          output=self.output().path,
+                          prefix=os.path.split(self.input()['fasta'].path)[1],
+                          scratch=self.scratch_dir,
+                          n_cpu=self.n_cpu)
+
+
+@inherits(MikadoConfigure)
+@inherits(BLAST)
+@inherits(TransDecoder)
+class MikadoSerialise(CheckTargetNonEmpty, SlurmExecutableTask):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-short"
+
+    def requires(self):
+        return {'conf': self.clone(MikadoConfigure),
+                'blast': self.clone(BLAST),
+                'orfs': self.clone(TransDecoder)}
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'mikado', 'mikado.db'))
+
+    def work_script(self):
+        return '''#!/bin/bash
+                  {python}
+                  rm {output}.temp
+                  set -euo pipefail
+                  cd {output_dir}
+
+                  mikado serialise  --orfs {orfs} --xml {blast} --json-conf {conf} {output}.temp
+
+                  mv {output}.temp {output}
+                '''.format(python=python,
+                           output_dir=os.path.split(self.output().path)[0],
+                           orfs=self.input()['orfs'].path,
+                           blast=self.input()['blast'].path,
+                           output=self.output().path,
+                           conf=self.input()['conf'].path)
+
+
+@inherits(MikadoConfigure)
+@inherits(MikadoPrepare)
+@inherits(MikadoSerialise)
+class MikadoPick(CheckTargetNonEmpty, SlurmExecutableTask):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 1500
+        self.n_cpu = 8
+        self.partition = "tgac-short"
+
+    def requires(self):
+        return {'conf': self.clone(MikadoConfigure),
+                'db': self.clone(MikadoSerialise),
+                'prep': self.clone(MikadoPrepare)}
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'transcripts', 'mikado', 'mikado.gff'))
+
+    def work_script(self):
+        return '''#!/bin/bash
+                  {python}
+                  set -euo pipefail
+                  cd {output_dir}
+
+                  mikado pick -p {n_cpu} --json-conf {conf} -db {db} --loci_out {output}.temp --log /dev/stderr
+
+                  mv {output}.temp.gff3 {output}
+                '''.format(python=python,
+                           n_cpu=self.n_cpu,
+                           output_dir=os.path.split(self.output().path)[0],
+                           gff=self.input()['prep']['gtf'].path,
+                           db=self.input()['db'].path,
+                           output=self.output().path,
+                           conf=self.input()['conf'].path)
+
+
 # ----------------------------------------------------------------------#
+
 
 if __name__ == '__main__':
     os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
@@ -520,7 +689,7 @@ if __name__ == '__main__':
     with open(sys.argv[1], 'r') as libs_file:
         lib_list = [line.rstrip() for line in libs_file]
 
-    luigi.run(['TranscriptsWrapper', '--lib-list', json.dumps(lib_list),
+    luigi.run(['MikadoPick', '--lib-list', json.dumps(lib_list),
                                      '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
                                      '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
-                                     '--blast_db', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/uniprot.fasta'] + sys.argv[2:])
+                                     '--blast-db', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/uniprot/pst_uniprot.fasta'] + sys.argv[2:])

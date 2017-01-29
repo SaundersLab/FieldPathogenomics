@@ -9,7 +9,7 @@ from luigi.contrib import sqla
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
+from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
 from fieldpathogenomics.utils import CheckTargetNonEmpty
 from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
 
@@ -581,6 +581,46 @@ class HaplotypeCaller(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
                    output=self.output().path,
                    gatk=gatk.format(mem=self.mem * self.n_cpu),
                    reference=self.reference)
+
+
+@requires(HaplotypeCaller)
+class PlotAlleleFreq(SlurmTask):
+    '''Make plots of the ranked allele frequencies to identify mixed isolates'''
+
+    DP_thresh = luigi.IntParameter(default=10)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 4000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'QC', self.library + "_allele_freqs.pdf"))
+
+    def work(self):
+        import vcfnp
+        import numpy as np
+        import pandas as pd
+        import matplotlib.pyplot as plt
+
+        variants = vcfnp.variants(self.input().path)
+        calldata_2d = vcfnp.calldata_2d(self.input().path)
+
+        var = np.logical_and(variants['ALT'] != b'<NON_REF>', variants['DP'] > self.DP_thresh)
+        counts = np.sort(calldata_2d['AD'][var][:, 0, :], axis=1)[:, ::-1]
+        freqs = counts / calldata_2d['DP'][var]
+        third = 1 - np.sum(freqs, axis=1)
+
+        df = pd.DataFrame(np.hstack((freqs, third.reshape((-1, 1)))))
+        df[df == 0] = float('nan')
+
+        df.hist(sharex=True, sharey=True, range=(0, 1), bins=20)
+        plt.gcf().suptitle(self.library, fontsize=20)
+        plt.gcf().text(0.5, 0.04, 'Allele frequency', ha='center')
+        plt.gcf().text(0.02, 0.5, 'Counts', va='center', rotation='vertical')
+        plt.gcf().savefig(self.output().path)
 
 
 @inherits(Trimmomatic)

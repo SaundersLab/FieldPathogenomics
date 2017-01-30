@@ -634,7 +634,7 @@ class CombinedQC(luigi.WrapperTask):
         yield self.clone(FastxQC)
 
 
-@inherits(SplitNCigarReads)
+@inherits(MarkDuplicates)
 @inherits(CombinedQC)
 @inherits(HaplotypeCaller)
 class PerLibPipeline(luigi.WrapperTask):
@@ -643,7 +643,7 @@ class PerLibPipeline(luigi.WrapperTask):
     def requires(self):
         return {'qc': self.clone(CombinedQC),
                 'gvcf': self.clone(HaplotypeCaller),
-                'bam': self.clone(SplitNCigarReads)}
+                'bam': self.clone(MarkDuplicates)}
 
     def output(self):
         return self.input()

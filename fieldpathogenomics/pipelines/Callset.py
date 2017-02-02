@@ -154,48 +154,6 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
                            variants="\\\n".join([" --variant " + lib.path for lib in self.input()[1]]))
 
 
-@ScatterGather(ScatterVCF, GatherTSV, N_scatter)
-@inherits(GenotypeGVCF)
-class VariantsToTable(SlurmExecutableTask, CheckTargetNonEmpty):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Set the SLURM request params for this task
-        self.mem = 8000
-        self.n_cpu = 1
-        self.partition = "tgac-medium"
-
-    def requires(self):
-        return self.clone(GenotypeGVCF)
-
-    def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, 'QC', self.output_prefix + ".tsv"))
-
-    def work_script(self):
-        return '''#!/bin/bash
-                  source jre-8u92
-                  source gatk-3.6.0
-                  gatk='{gatk}'
-                  set -eo pipefail
-
-                  $gatk -T VariantsToTable -R {reference} --allowMissingData -F CHROM \
-                                                                             -F POS \
-                                                                             -F QD \
-                                                                             -F FS \
-                                                                             -F DP \
-                                                                             -F QUAL \
-                                                                             -GF GQ \
-                                                                             -GF RGQ \
-                                                                             -GF DP \
-                                                                             -V {input} -o {output}.temp
-
-                  mv {output}.temp {output}
-                  '''.format(input=self.input().path,
-                             output=self.output().path,
-                             reference=self.reference,
-                             gatk=gatk.format(mem=self.mem * self.n_cpu))
-
-
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
 @inherits(GenotypeGVCF)
 class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
@@ -283,7 +241,6 @@ class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 
 
-@inherits(GetSNPs)
 class VCFtoHDF5(SlurmExecutableTask):
 
     def __init__(self, *args, **kwargs):
@@ -294,19 +251,19 @@ class VCFtoHDF5(SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_SNPs.hd5"))
+        return LocalTarget(self.input().path.rsplit('.')[0] + ".hd5")
 
     def work_script(self):
         self.temp1 = TemporaryFile()
-        cache_dir = os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.output_prefix, 'SNPs.hd5.cache')
+        cache_dir = self.output().path + '.cache'
         os.makedirs(cache_dir)
         return '''#!/bin/bash
                 {python}
                 set -eo pipefail
                 gzip -cd {input} > {temp1}
 
-                vcf2npy --vcf {temp1} --array-type calldata_2d --output-dir {cache_dir} --compress
-                vcf2npy --vcf {temp1} --array-type variants --output-dir {cache_dir} --compress
+                vcf2npy --vcf {temp1} --arity 'AD:6' --array-type calldata_2d --output-dir {cache_dir} --compress
+                vcf2npy --vcf {temp1} --arity 'AD:6' --array-type variants --output-dir {cache_dir} --compress
 
                 vcfnpy2hdf5 --vcf {temp1} --input-dir {cache_dir} --ouput {output}.temp
 
@@ -318,33 +275,15 @@ class VCFtoHDF5(SlurmExecutableTask):
                            output=self.output().path)
 
 
-@requires(VcfToolsFilter)
-class VariantsEval(SlurmExecutableTask, CheckTargetNonEmpty):
+@inherits(GenotypeGVCF)
+@inherits(VcfToolsFilter)
+@inherits(GetSNPs)
+class HD5s(luigi.WrapperTask):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Set the SLURM request params for this task
-        self.mem = 8000
-        self.n_cpu = 1
-        self.partition = "tgac-medium"
-
-    def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, 'QC', self.output_prefix + ".variant_eval"))
-
-    def work_script(self):
-        return '''#!/bin/bash
-                  source jre-8u92
-                  source gatk-3.6.0
-                  gatk='{gatk}'
-                  set -eo pipefail
-
-                  $gatk -T VariantEval -R {reference} --eval {input} -o {output}.temp
-
-                  mv {output}.temp {output}
-                  '''.format(input=self.input().path,
-                             output=self.output().path,
-                             reference=self.reference,
-                             gatk=gatk.format(mem=self.mem * self.n_cpu))
+    def requires(self):
+        yield requires(GenotypeGVCF)(VCFtoHDF5)()
+        yield requires(VcfToolsFilter)(VCFtoHDF5)()
+        yield requires(GetSNPs)(VCFtoHDF5)()
 
 
 @requires(GetSNPs)
@@ -487,16 +426,15 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
 @inherits(GetSyn)
 @inherits(GetRefSNPs)
 @inherits(GetINDELs)
-@inherits(VariantsToTable)
-@inherits(VariantsEval)
+@inherits(HD5s)
 class CallsetWrapper(luigi.WrapperTask):
 
     def requires(self):
         yield self.clone(GetINDELs)
         yield self.clone(GetSyn)
-        yield self.clone(VariantsToTable)
-        yield self.clone(VariantsEval)
         yield self.clone(GetRefSNPs)
+        yield self.clone(HD5s)
+
 
 
 if __name__ == '__main__':

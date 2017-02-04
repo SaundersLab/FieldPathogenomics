@@ -250,6 +250,11 @@ class VCFtoHDF5(SlurmExecutableTask):
     def output(self):
         return LocalTarget(self.input().path.rsplit('.')[0] + ".hd5")
 
+    def to_str_params(self, only_significant=False):
+        sup = super().to_str_params(only_significant)
+        extras = {'input': self.input().path}
+        return dict(list(sup.items()) + list(extras.items()))
+
     def work_script(self):
         self.temp1 = TemporaryFile()
         cache_dir = self.output().path + '.cache'
@@ -278,9 +283,9 @@ class VCFtoHDF5(SlurmExecutableTask):
 class HD5s(luigi.WrapperTask):
 
     def requires(self):
-        yield requires(GenotypeGVCF)(VCFtoHDF5)()
-        yield requires(VcfToolsFilter)(VCFtoHDF5)()
-        yield requires(GetSNPs)(VCFtoHDF5)()
+        yield self.clone(requires(GenotypeGVCF)(VCFtoHDF5))
+        yield self.clone(requires(VcfToolsFilter)(VCFtoHDF5))
+        yield self.clone(requires(GetSNPs)(VCFtoHDF5))
 
 
 @requires(GetSNPs)

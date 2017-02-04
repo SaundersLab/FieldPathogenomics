@@ -577,7 +577,7 @@ class TransDecoder(SlurmExecutableTask, CheckTargetNonEmpty):
                '''.format(input=self.input()['fasta'].path,
                           output=self.output().path,
                           prefix=os.path.split(self.input()['fasta'].path)[1],
-                          scratch=self.scratch_dir, VERSION, PIPELINE,
+                          scratch=os.path.join(self.scratch_dir, VERSION, PIPELINE),
                           n_cpu=self.n_cpu)
 
 

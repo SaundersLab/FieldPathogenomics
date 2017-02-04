@@ -570,9 +570,14 @@ class HaplotypeCaller(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
                 gatk='{gatk}'
                 set -euo pipefail
 
-                $gatk -T HaplotypeCaller  -R {reference} -I {input} -dontUseSoftClippedBases --variant_index_type LINEAR --variant_index_parameter 128000 --emitRefConfidence GVCF -o {output}.temp
+                $gatk -T HaplotypeCaller  \
+                      -R {reference} \
+                      -I {input} \
+                      -dontUseSoftClippedBases\
+                      --emitRefConfidence GVCF \
+                      -o {output}.temp.g.vcf
 
-                mv {output}.temp {output}
+                mv {output}.temp.g.vcf {output}
         '''.format(input=self.input().path,
                    output=self.output().path,
                    gatk=gatk.format(mem=self.mem * self.n_cpu),

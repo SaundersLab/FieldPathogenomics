@@ -2,6 +2,7 @@ import os
 import sys
 import json
 
+import fieldpathogenomics
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
 from fieldpathogenomics.pipelines.Callset import GetRefSNPs
 from fieldpathogenomics.utils import CheckTargetNonEmpty
@@ -20,6 +21,7 @@ python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 FILE_HASH = utils.file_hash(__file__)
 PIPELINE = os.path.basename(__file__)
+VERSION = fieldpathogenomics.__version__.rsplit('.',1)[0]
 
 
 @requires(GetRefSNPs)
@@ -35,7 +37,7 @@ class ConvertToBCF(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.output_prefix + ".bcf.gz"))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, self.output_prefix + ".bcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash -e
@@ -60,8 +62,8 @@ class GetSingleSample(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-short"
 
     def output(self):
-        return[LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, 'single_sample', self.library + ".vcf.gz")),
-               LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, 'single_sample', self.library + ".bed"))]
+        return[LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, 'single_sample', self.library + ".vcf.gz")),
+               LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, 'single_sample', self.library + ".bed"))]
 
     def work_script(self):
 
@@ -103,7 +105,7 @@ class BCFtoolsConsensus(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, 'single_sample', self.library + "_" + self.consensus_type + '.fasta'))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, 'single_sample', self.library + "_" + self.consensus_type + '.fasta'))
 
     def work_script(self):
         ct_flag = "--" + self.consensus_type if self.consensus_type == 'iupac-codes' else "-" + \
@@ -139,7 +141,7 @@ class GFFread(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, 'single_sample', self.library + '_genes_' + self.consensus_type + '.fasta'))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, 'single_sample', self.library + '_genes_' + self.consensus_type + '.fasta'))
 
     def work_script(self):
         return '''#!/bin/bash -e
@@ -180,8 +182,8 @@ class GetAlignment(SlurmTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return {'phy': LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, self.output_prefix + ".phy")),
-                'nex': LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, self.output_prefix + ".nex"))}
+        return {'phy': LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, self.output_prefix + ".phy")),
+                'nex': LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, self.output_prefix + ".nex"))}
 
     def work(self):
         import Bio
@@ -222,8 +224,8 @@ class RAxML(SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return {'result': LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, "RAxML_result." + self.output_prefix)),
-                'bootstrap': LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, "RAxML_bootstrap." + self.output_prefix))}
+        return {'result': LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, "RAxML_result." + self.output_prefix)),
+                'bootstrap': LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, "RAxML_bootstrap." + self.output_prefix))}
 
     def work_script(self):
         return '''#!/bin/bash
@@ -238,7 +240,7 @@ class RAxML(SlurmExecutableTask):
 
                raxmlHPC-PTHREADS-SSE3 -T {n_cpu} –s {input} –m GTRGAMMA –n {suffix}_bootstraps –p 100 –b 1234 –N 10
 
-               '''.format(output_dir=os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix),
+               '''.format(output_dir=os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix),
                           n_cpu=self.n_cpu,
                           input=self.input()['phy'].path,
                           suffix=self.output_prefix)

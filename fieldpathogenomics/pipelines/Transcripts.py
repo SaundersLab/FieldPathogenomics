@@ -7,6 +7,7 @@ from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
+import fieldpathogenomics
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
 from fieldpathogenomics.luigi.uv import UVExecutableTask
 from fieldpathogenomics.utils import CheckTargetNonEmpty
@@ -18,6 +19,7 @@ python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 FILE_HASH = utils.file_hash(__file__)
 PIPELINE = os.path.basename(__file__).split('.')[0]
+VERSION = fieldpathogenomics.__version__.rsplit('.',1)[0]
 
 # -----------------------------StringTie------------------------------- #
 
@@ -38,7 +40,7 @@ class StringTie(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, 'stringtie.gtf'))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, self.library, 'stringtie.gtf'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -72,7 +74,7 @@ class StringTieMerge(SlurmExecutableTask, CheckTargetNonEmpty):
         return [self.clone(StringTie, library=lib) for lib in self.lib_list]
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'stringtie.gtf'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'stringtie.gtf'))
 
     def work_script(self):
         self.temp = TemporaryFile()
@@ -108,7 +110,7 @@ class Cufflinks(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, "cufflinks.gtf"))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, self.library, "cufflinks.gtf"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -120,7 +122,7 @@ class Cufflinks(SlurmExecutableTask, CheckTargetNonEmpty):
         mv {temp_dir}/transcripts.gtf {output}
         '''.format(input=self.input().path,
                    output=self.output().path,
-                   temp_dir=os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.library, 'cufflinks_temp'))
+                   temp_dir=os.path.join(self.scratch_dir, PIPELINE, VERSION, self.library, 'cufflinks_temp'))
 
 
 @inherits(Cufflinks)
@@ -141,7 +143,7 @@ class CuffMerge(SlurmExecutableTask, CheckTargetNonEmpty):
         return [self.clone(Cufflinks, library=lib) for lib in self.lib_list]
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'cufflinks_raw.gtf'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'cufflinks_raw.gtf'))
 
     def work_script(self):
         self.temp = TemporaryFile()
@@ -160,7 +162,7 @@ class CuffMerge(SlurmExecutableTask, CheckTargetNonEmpty):
         mv {out_dir}/merged.gtf {output}
         '''.format(input="\n".join([x.path for x in self.input()]),
                    output=self.output().path,
-                   out_dir=os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, 'cufflinks_merge'),
+                   out_dir=os.path.join(self.scratch_dir, PIPELINE, VERSION, 'cufflinks_merge'),
                    temp=self.temp.path,
                    n_cpu=self.n_cpu,)
 
@@ -179,7 +181,7 @@ class AddTranscripts(SlurmTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'cufflinks.gtf'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'cufflinks.gtf'))
 
     def work(self):
         import re
@@ -244,7 +246,7 @@ class MergeBam(SlurmExecutableTask, CheckTargetNonEmpty):
         return [self.clone(Library.MarkDuplicates, library=lib) for lib in self.lib_list]
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.output_prefix, 'merged.bam'))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, self.output_prefix, 'merged.bam'))
 
     def work_script(self):
         self.temp = TemporaryFile()
@@ -272,7 +274,7 @@ class Trinity(UVExecutableTask, CheckTargetNonEmpty):
         self.host = 'uv2k2'
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'Trinity-GG.fasta'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'Trinity-GG.fasta'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -307,7 +309,7 @@ class GMAP(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = 'tgac-medium'
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'trinity.gff3'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'trinity.gff3'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -337,7 +339,7 @@ class PortcullisPrep(SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.output_prefix, 'portcullis_prep'))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, self.output_prefix, 'portcullis_prep'))
 
     def work_script(self):
         self.temp = TemporaryFile()
@@ -363,7 +365,7 @@ class PortcullisJunc(SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.output_prefix, 'portcullis_junc'))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, self.output_prefix, 'portcullis_junc'))
 
     def work_script(self):
         self.temp = TemporaryFile()
@@ -396,7 +398,7 @@ class PortcullisFilter(SlurmExecutableTask):
                 'junc': self.clone(PortcullisJunc)}
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.output_prefix, 'portcullis_filter'))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, self.output_prefix, 'portcullis_filter'))
 
     def work_script(self):
         self.temp = TemporaryFile()
@@ -445,7 +447,7 @@ class MikadoConfigure(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'mikado', 'configuration.yaml'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'mikado', 'configuration.yaml'))
 
     def list(self):
         '''Mikado requires a table of the transciptome assemblies to use.
@@ -498,8 +500,8 @@ class MikadoPrepare(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return {'gtf': LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'mikado', 'mikado_prepared.gtf')),
-                'fasta': LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'mikado', 'mikado_prepared.fasta'))}
+        return {'gtf': LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'mikado', 'mikado_prepared.gtf')),
+                'fasta': LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'mikado', 'mikado_prepared.fasta'))}
 
     def work_script(self):
         return '''#!/bin/bash
@@ -527,7 +529,7 @@ class BLAST(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'mikado', 'blast.xml.gz'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'mikado', 'blast.xml.gz'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -559,7 +561,7 @@ class TransDecoder(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'mikado', 'orfs.bed'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'mikado', 'orfs.bed'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -575,7 +577,7 @@ class TransDecoder(SlurmExecutableTask, CheckTargetNonEmpty):
                '''.format(input=self.input()['fasta'].path,
                           output=self.output().path,
                           prefix=os.path.split(self.input()['fasta'].path)[1],
-                          scratch=self.scratch_dir, PIPELINE, FILE_HASH,
+                          scratch=self.scratch_dir, PIPELINE, VERSION,
                           n_cpu=self.n_cpu)
 
 
@@ -597,7 +599,7 @@ class MikadoSerialise(CheckTargetNonEmpty, SlurmExecutableTask):
                 'orfs': self.clone(TransDecoder)}
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'mikado', 'mikado.db'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'mikado', 'mikado.db'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -635,7 +637,7 @@ class MikadoPick(CheckTargetNonEmpty, SlurmExecutableTask):
                 'prep': self.clone(MikadoPrepare)}
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'mikado', 'mikado.gff'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'mikado', 'mikado.gff'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -666,7 +668,7 @@ class MikadoCompare(CheckTargetNonEmpty, SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, self.output_prefix, 'mikado', 'mikado.gff'))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, self.output_prefix, 'mikado', 'mikado.gff'))
 
     def work_script(self):
         return '''#!/bin/bash

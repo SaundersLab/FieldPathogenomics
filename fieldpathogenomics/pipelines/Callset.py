@@ -9,6 +9,7 @@ from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
+import fieldpathogenomics
 from fieldpathogenomics.utils import CheckTargetNonEmpty, gatk, snpeff, snpsift
 from fieldpathogenomics.SGUtils import ScatterBED, GatherVCF, ScatterVCF
 from fieldpathogenomics.luigi.scattergather import ScatterGather
@@ -20,6 +21,7 @@ import fieldpathogenomics.pipelines.Library as Library
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 FILE_HASH = utils.file_hash(__file__)
+VERSION = fieldpathogenomics.__version__.rsplit('.',1)[0]
 PIPELINE = os.path.basename(__file__).split('.')[0]
 
 '''
@@ -77,7 +79,7 @@ class CombineGVCFs(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, FILE_HASH, self.output_prefix, "combined", self.output_prefix + "_" + str(self.idx) + ".g.vcf"))
+        return LocalTarget(os.path.join(self.scratch_dir, PIPELINE, VERSION, self.output_prefix, "combined", self.output_prefix + "_" + str(self.idx) + ".g.vcf"))
 
     def work_script(self):
         perfile = math.ceil(len(self.input()) / self.N_gvcfs)
@@ -130,7 +132,7 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_raw.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, 'callsets', self.output_prefix, self.output_prefix + "_raw.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -168,7 +170,7 @@ class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_filtered.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, 'callsets', self.output_prefix, self.output_prefix + "_filtered.vcf.gz"))
 
     def work_script(self):
         self.temp1 = TemporaryFile()
@@ -211,7 +213,7 @@ class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return CommittedTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_SNPs.vcf.gz"))
+        return CommittedTarget(os.path.join(self.base_dir, PIPELINE, VERSION, 'callsets', self.output_prefix, self.output_prefix + "_SNPs.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -292,7 +294,7 @@ class SnpEff(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_SNPs_ann.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, 'callsets', self.output_prefix, self.output_prefix + "_SNPs_ann.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -320,7 +322,7 @@ class GetSyn(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_SNPs_syn.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, 'callsets', self.output_prefix, self.output_prefix + "_SNPs_syn.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -353,7 +355,7 @@ class GetINDELs(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_INDELs_only.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, PIPELINE, VERSION, 'callsets', self.output_prefix, self.output_prefix + "_INDELs_only.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -389,7 +391,7 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return CommittedTarget(os.path.join(self.base_dir, PIPELINE, FILE_HASH, 'callsets', self.output_prefix, self.output_prefix + "_RefSNPs.vcf.gz"))
+        return CommittedTarget(os.path.join(self.base_dir, PIPELINE, VERSION, 'callsets', self.output_prefix, self.output_prefix + "_RefSNPs.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -429,7 +431,6 @@ class CallsetWrapper(luigi.WrapperTask):
         yield self.clone(GetSyn)
         yield self.clone(GetRefSNPs)
         yield self.clone(HD5s)
-
 
 
 if __name__ == '__main__':

@@ -10,14 +10,11 @@ from luigi.util import requires, inherits
 from luigi import LocalTarget
 
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
-from fieldpathogenomics.utils import CheckTargetNonEmpty
+from fieldpathogenomics.utils import CheckTargetNonEmpty, picard, gatk, trimmomatic
 from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
 
 import fieldpathogenomics.utils as utils
 
-picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
-gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
-trimmomatic = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/trimmomatic/0.36/x86_64/bin/trimmomatic-0.36.jar "
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 FILE_HASH = utils.file_hash(__file__)
@@ -570,7 +567,6 @@ class HaplotypeCaller(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
     def work_script(self):
         return '''#!/bin/bash
                 source jre-8u92
-                source gatk-3.6.0
                 gatk='{gatk}'
                 set -euo pipefail
 

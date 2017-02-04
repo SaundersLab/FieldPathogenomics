@@ -9,7 +9,7 @@ def indextarget(struct, idx):
     Maps all Targets in a structured output to an indexed temporary file
     """
     if isinstance(struct, Target):
-        base, *ext = struct.path.split('.', maxsplit=1)
+        base, *ext = struct.path.rsplit('.', maxsplit=1)
         if len(ext) > 0:
             return LocalTarget(base + "_" + str(idx) + "." + ext[0])
         else:

@@ -30,8 +30,8 @@ class SlurmMixin(ClusterBase):
 
     def _salloc(self):
         '''Request a job allocation from the scheduler, blocks until its ready then return the job id '''
-        salloc = "salloc -N 1 -c {n_cpu} -n 1 --mem {total_mem} -p {partition} -J {job_name} --no-shell".format(
-            n_cpu=self.n_cpu, partition=self.partition, total_mem=int(self.mem * self.n_cpu), job_name=self.job_name)
+        salloc = "salloc -N 1 {args} -c {n_cpu} -n 1 --mem {total_mem} -p {partition} -J {job_name} --no-shell".format(
+            n_cpu=self.n_cpu, partition=self.partition, total_mem=int(self.mem * self.n_cpu), job_name=self.job_name, args=self.sbatch_args)
 
         comp = subprocess.run(salloc, shell=True, stderr=subprocess.PIPE,
                               stdout=subprocess.PIPE, universal_newlines=True, check=True)
@@ -71,6 +71,8 @@ class SlurmExecutableTask(luigi.Task, SlurmMixin):
     run_locally = luigi.BoolParameter(
         significant=False, description="run locally instead of on the cluster")
     rm_tmp = luigi.BoolParameter(default=True, significant=False)
+    sbatch_args = luigi.Parameter(default='', significant=False)
+
 
     def __init__(self, *args, **kwargs):
         super(SlurmExecutableTask, self).__init__(*args, **kwargs)

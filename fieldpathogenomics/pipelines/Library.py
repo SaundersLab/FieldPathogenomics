@@ -562,6 +562,8 @@ class HaplotypeCaller(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
         self.mem = 6000
         self.n_cpu = 1
         self.partition = "tgac-medium"
+        self.sbatch_args = '--constraint=intel'
+
 
     def output(self):
         return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library, self.library + ".g.vcf"))

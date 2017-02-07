@@ -266,8 +266,8 @@ class VCFtoHDF5(SlurmExecutableTask):
                 set -eo pipefail
                 gzip -cd {input} > {temp1}
 
-                vcf2npy --vcf {temp1} --arity 'AD:6' --array-type calldata_2d --output-dir {cache_dir} --compress
-                vcf2npy --vcf {temp1} --arity 'AD:6' --array-type variants --output-dir {cache_dir} --compress
+                vcf2npy --vcf {temp1} --arity 'AD:6' --array-type calldata_2d --output-dir {cache_dir}
+                vcf2npy --vcf {temp1} --arity 'AD:6' --array-type variants --output-dir {cache_dir}
 
                 vcfnpy2hdf5 --vcf {temp1} --input-dir {cache_dir} --output {output}.temp
 

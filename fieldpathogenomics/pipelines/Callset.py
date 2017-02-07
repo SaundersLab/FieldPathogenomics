@@ -248,7 +248,7 @@ class VCFtoHDF5(SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(self.input().path.rsplit('.')[0] + ".hd5")
+        return LocalTarget(self.input().path.rsplit('.', maxsplit=1)[0] + ".hd5")
 
     def to_str_params(self, only_significant=False):
         sup = super().to_str_params(only_significant)

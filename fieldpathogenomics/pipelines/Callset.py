@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import math
+import shutil
 
 import luigi
 from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
@@ -258,6 +259,7 @@ class VCFtoHDF5(SlurmExecutableTask):
     def work_script(self):
         self.temp1 = TemporaryFile()
         cache_dir = self.output().path + '.cache'
+        shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
         return '''#!/bin/bash
                 {python}
@@ -267,7 +269,7 @@ class VCFtoHDF5(SlurmExecutableTask):
                 vcf2npy --vcf {temp1} --arity 'AD:6' --array-type calldata_2d --output-dir {cache_dir} --compress
                 vcf2npy --vcf {temp1} --arity 'AD:6' --array-type variants --output-dir {cache_dir} --compress
 
-                vcfnpy2hdf5 --vcf {temp1} --input-dir {cache_dir} --ouput {output}.temp
+                vcfnpy2hdf5 --vcf {temp1} --input-dir {cache_dir} --output {output}.temp
 
                 mv {output}.temp {output}
                 '''.format(python=python,

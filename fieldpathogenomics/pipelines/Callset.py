@@ -263,6 +263,7 @@ class VCFtoHDF5(SlurmExecutableTask):
         os.makedirs(cache_dir)
         return '''#!/bin/bash
                 {python}
+                rm {output}.temp
                 set -eo pipefail
                 gzip -cd {input} > {temp1}
 

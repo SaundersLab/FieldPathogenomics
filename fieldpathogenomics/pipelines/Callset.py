@@ -409,9 +409,7 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                   gatk='{gatk}'
                   set -eo pipefail
 
-                  $gatk -T -T SelectVariants -V {input} -R {reference} \
-                        --restrictAllelesTo BIALLELIC \
-                        --selectTypeToInclude SYMBOLIC \
+                  $gatk -T SelectVariants -V {input} -R {reference} \
                         --selectTypeToInclude NO_VARIATION \
                         --selectTypeToInclude SNP \
                         --out {output}.temp.vcf.gz

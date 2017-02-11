@@ -20,8 +20,8 @@ snpsift = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 FILE_HASH = utils.file_hash(__file__)
-PIPELINE = os.path.basename(__file__)
-VERSION = fieldpathogenomics.__version__.rsplit('.',1)[0]
+PIPELINE = os.path.basename(__file__).split('.')[0]
+VERSION = fieldpathogenomics.__version__.rsplit('.', 1)[0]
 
 
 @requires(GetRefSNPs)
@@ -163,7 +163,7 @@ class GetConsensusesWrapper(luigi.Task):
     def requires(self):
         return {consensus_type: [self.clone_parent(library=library, consensus_type=consensus_type)
                                  for library in self.lib_list]
-                                 for consensus_type in ['H1', 'H2', 'iupac-codes']}
+                for consensus_type in ['H1', 'H2', 'iupac-codes']}
 
     def output(self):
         return self.input()
@@ -182,8 +182,8 @@ class GetAlignment(SlurmTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return {'phy': LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + ".phy")),
-                'nex': LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + ".nex"))}
+        return {'phy': LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + ".phy")),}
+                #'nex': LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + ".nex"))}
 
     def work(self):
         import Bio
@@ -192,7 +192,7 @@ class GetAlignment(SlurmTask):
         import contextlib
         import numpy as np
 
-        with contextlib.ExitStack() as stack, self.output()['phy'].open('w') as fphy, self.output()['nex'].open('w') as fnex:
+        with contextlib.ExitStack() as stack, self.output()['phy'].open('w') as fphy:#, self.output()['nex'].open('w') as fnex:
 
             fhs = [stack.enter_context(open(fname.path)) for fname in self.input()['iupac-codes']]
             parsers = zip(*[Bio.SeqIO.parse(f, 'fasta') for f in fhs])
@@ -211,7 +211,7 @@ class GetAlignment(SlurmTask):
                         msa[i] += x.seq[::3]
 
             Bio.AlignIO.write(Bio.Align.MultipleSeqAlignment(msa), fphy, 'phylip-relaxed')
-            Bio.AlignIO.write(Bio.Align.MultipleSeqAlignment(msa), fnex, 'nexus')
+            #Bio.AlignIO.write(Bio.Align.MultipleSeqAlignment(msa), fnex, 'nexus')
 
 
 @requires(GetAlignment)
@@ -219,30 +219,89 @@ class RAxML(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 1000
-        self.n_cpu = 5
+        self.mem = 4000
+        self.n_cpu = 1
         self.partition = "tgac-medium"
 
     def output(self):
-        return {'result': LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, "RAxML_result." + self.output_prefix)),
-                'bootstrap': LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, "RAxML_bootstrap." + self.output_prefix))}
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'mle', "RAxML_result." + self.output_prefix))
 
     def work_script(self):
         return '''#!/bin/bash
                source raxml-8.2.9;
-               set -euo pipefail
 
-               mkdir -p {output_dir}
                cd {output_dir}
                rm {output_dir}/RAxML*
+               set -euo pipefail
 
-               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix} -p 100 ;
+               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix}.temp -p 100 ;
 
-               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} –s {input} –m GTRGAMMA –n {suffix}_bootstraps –p 100 –b 1234 –N 10
-
-               '''.format(output_dir=os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix),
+               mv RAxML_result.{suffix}.temp RAxML_result.{suffix}
+               '''.format(output_dir=os.path.split(self.output().path)[0],
                           n_cpu=self.n_cpu,
                           input=self.input()['phy'].path,
+                          suffix=self.output_prefix)
+
+
+@requires(GetAlignment)
+class RAxML_Bootstrap(SlurmExecutableTask):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 1000
+        self.n_cpu = 10
+        self.partition = "tgac-medium"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'bootstraps', "RAxML_bootstrap." + self.output_prefix))
+
+    def work_script(self):
+        return '''#!/bin/bash
+               source raxml-8.2.9;
+               cd {output_dir}
+               rm {output_dir}/RAxML*
+               set -euo pipefail
+
+               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix}.temp -p 100 -b 1234 -N 300;
+
+               mv RAxML_bootstrap.{suffix}.temp RAxML_bootstrap.{suffix}
+               '''.format(output_dir=os.path.split(self.output().path)[0],
+                          n_cpu=self.n_cpu,
+                          input=self.input()['phy'].path,
+                          suffix=self.output_prefix)
+
+
+@inherits(RAxML)
+@inherits(RAxML_Bootstrap)
+class RAxML_Combine(SlurmExecutableTask):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 4000
+        self.n_cpu = 2
+        self.partition = "tgac-medium"
+
+    def requires(self):
+        return {'mle': self.clone(RAxML),
+                'bootstrap': self.clone(RAxML_Bootstrap)}
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'comb', "RAxML_bipartitionsBranchLabels." + self.output_prefix))
+
+    def work_script(self):
+        return '''#!/bin/bash
+               source raxml-8.2.9;
+               cd {output_dir}
+               rm {output_dir}/RAxML*
+               set -euo pipefail
+
+               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -m GTRGAMMA -p 100 -f b -t {mle} -z {bootstrap} -n {suffix}.temp
+
+               mv RAxML_bipartitionsBranchLabels.{suffix}.temp RAxML_bipartitionsBranchLabels.{suffix}
+               '''.format(output_dir=os.path.split(self.output().path)[0],
+                          n_cpu=self.n_cpu,
+                          bootstrap=self.input()['bootstrap'].path,
+                          mle=self.input()['mle'].path,
                           suffix=self.output_prefix)
 
 
@@ -256,8 +315,9 @@ if __name__ == '__main__':
 
     name = os.path.split(sys.argv[1])[1].split('.', 1)[0]
 
-    luigi.run(['RAxML', '--output-prefix', name,
+    luigi.run(['RAxML_Combine', '--output-prefix', name,
                         '--lib-list', json.dumps(lib_list),
+                        '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
                         '--gff', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/PST_genes_final.gff3',
                         '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
                         '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])

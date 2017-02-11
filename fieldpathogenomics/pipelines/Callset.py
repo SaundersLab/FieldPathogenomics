@@ -415,7 +415,7 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                         --out {output}.temp.vcf.gz
 
                   # Filter out * which represents spanning deletions
-                  gzip -cd {output}.temp.vcf.gz | grep -v $'\t\*\t' | bgzip -c > {output}.temp2.vcf.gz
+                  gzip -cd {output}.temp.vcf.gz | grep -v $'[,\t]\*' | bgzip -c > {output}.temp2.vcf.gz
 
                   mv {output}.temp2.vcf.gz {output}
                   '''.format(input=self.input().path,

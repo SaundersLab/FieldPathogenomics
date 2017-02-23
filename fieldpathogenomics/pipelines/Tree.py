@@ -220,7 +220,7 @@ class RAxML(SlurmExecutableTask):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
         self.mem = 4000
-        self.n_cpu = 1
+        self.n_cpu = 10
         self.partition = "tgac-medium"
 
     def output(self):
@@ -262,7 +262,7 @@ class RAxML_Bootstrap(SlurmExecutableTask):
                rm {output_dir}/RAxML*
                set -euo pipefail
 
-               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix}.temp -p 100 -b 1234 -N 300;
+               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix}.temp -p 100 -b 1234 -N 100;
 
                mv RAxML_bootstrap.{suffix}.temp RAxML_bootstrap.{suffix}
                '''.format(output_dir=os.path.split(self.output().path)[0],

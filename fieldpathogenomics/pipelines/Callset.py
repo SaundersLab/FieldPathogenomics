@@ -244,7 +244,7 @@ class VCFtoHDF5(SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 32000
+        self.mem = 64000
         self.n_cpu = 1
         self.partition = "tgac-medium"
 

@@ -6,25 +6,18 @@ from fieldpathogenomics.luigi.notebook import NotebookTask
 
 test_dir = os.path.split(__file__)[0]
 
+
 class TestNB(NotebookTask):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, vars_dict={"test": 'Hello World!'}, **kwargs)
         self.n_cpu = 1
         self.mem = 100
-        self.vars_dict = {"test_var": 'Hello World!'}
-
 
     def output(self):
-        return luigi.LocalTarget(os.path.join(test_dir, 'scratch', "SLURM_TestOk.txt"))
-
-    def work(self):
-        print("WOOOOOO HELLO")
-        with self.output().open('w') as f:
-            f.write("OK\n")
-
+        return luigi.LocalTarget(os.path.join(test_dir, 'scratch', "test.ipynb"))
 
 
 class TestNotebookTask(unittest.TestCase):
     def test_Ok(self):
-        task = TestNB(notebook='notebooks/test.ipynb')
+        task = TestNB(notebook='/usr/users/ga004/buntingd/FP_dev/dev/src/fieldpathogenomics/tests/notebooks/test.ipynb')
         luigi.build([task], local_scheduler=True)

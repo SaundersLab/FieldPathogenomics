@@ -6,16 +6,15 @@ import os
 import time
 
 from fieldpathogenomics.luigi.slurm import SlurmTask
-import fieldpathogenomics.utils as utils
 
 
-class NotebookTask(luigi.Task, SlurmTask):
+class NotebookTask(SlurmTask):
 
     notebook = luigi.Parameter()
-    vars_dict = luigi.DictParameter()
+    vars_dict = luigi.DictParameter(default={})
 
     def __init__(self, *args, **kwargs):
-        super.__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def luigi_vars(self, cell_idx):
         '''Operates on cells with a ##luigi-vars magic
@@ -28,8 +27,11 @@ class NotebookTask(luigi.Task, SlurmTask):
             try:
                 key = re.match('^(\S+)\s*=', l).groups()[0]
                 lines[i] = "{0} = {1}".format(key, self.vars_dict[key].__repr__())
-            except:
+
+            except ValueError:
                 raise Exception("Unable to match luigi-vars line {} in {}".format(l, self.notebook))
+            except KeyError:
+                raise Exception("Unable to match variable {} in {}".format(key, self.notebook))
 
         self.nb['cells'][cell_idx]['source'] = "\n".join(lines)
 
@@ -40,7 +42,7 @@ class NotebookTask(luigi.Task, SlurmTask):
                                 "## Created at " + time.strftime("%H:%M:%S on %d/%m/%Y")])
 
         self.nb['cells'].insert(0, nbformat.v4.new_markdown_cell(metastring))
-        self.nb['cells'].insert(0, nbformat.v4.new_code_cell('cd {})'.format(nb_dir)))
+        self.nb['cells'].insert(0, nbformat.v4.new_code_cell('cd {}'.format(nb_dir)))
 
     def work(self, *args, **kwargs):
 
@@ -57,7 +59,7 @@ class NotebookTask(luigi.Task, SlurmTask):
         # Populates variable and metadata
         for i, cell in enumerate(self.nb['cells']):
             if re.match('^##luigi-vars', cell['source']):
-                self.luigi_vars(cell)
+                self.luigi_vars(i)
         self.luigi_meta()
 
         # Actually run the notebook here
@@ -69,9 +71,8 @@ class NotebookTask(luigi.Task, SlurmTask):
         (body, resources) = html.from_notebook_node(self.nb)
 
         # Make use of luigi's built in atomic file writing
-        with self.output().path.split('.ipynb')[0] + '.html' as fout:
+        with open(self.output().path.split('.ipynb')[0] + '.html', 'w') as fout:
             fout.write(body)
 
         with self.output().open('w') as fout:
             nbformat.write(self.nb, fout)
-

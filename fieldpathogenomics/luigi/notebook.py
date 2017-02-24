@@ -1,5 +1,3 @@
-
-import luigi
 import nbformat
 import re
 import os
@@ -9,9 +7,6 @@ from fieldpathogenomics.luigi.slurm import SlurmTask
 
 
 class NotebookTask(SlurmTask):
-
-    notebook = luigi.Parameter()
-    vars_dict = luigi.DictParameter(default={})
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

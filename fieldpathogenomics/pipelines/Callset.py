@@ -304,10 +304,24 @@ class SNPsNotebook(NotebookTask):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, 'QC', 'SNPs.ipynb'))
 
 
+@requires(requires(GenotypeGVCF)(VCFtoHDF5))
+@inherits(GenotypeGVCF)
+class RawNotebook(NotebookTask):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.notebook = os.path.join(utils.notebooks, 'Callset', 'Raw.ipynb')
+        self.vars_dict = {'SNPS_HD5': self.input().path}
+        logger.info(str(self.vars_dict))
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, 'QC', 'Raw.ipynb'))
+
+
 @inherits(SNPsNotebook)
 class QCNotebooks(luigi.WrapperTask):
     def requires(self):
         yield self.clone(SNPsNotebook)
+        yield self.clone(RawNotebook)
 
 
 @requires(GetSNPs)

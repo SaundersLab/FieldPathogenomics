@@ -31,8 +31,10 @@ class NotebookTask(SlurmTask):
         self.nb['cells'][cell_idx]['source'] = "\n".join(lines)
 
     def luigi_meta(self):
-        nb_dir, nb_name = os.path.split(self.notebook)
+        nb_name = os.path.split(self.notebook)[1]
         nb_name = nb_name.split('.ipynb')[0]
+        nb_dir = os.path.split(self.output().path)[0]
+
         metastring = '\n'.join(["# " + nb_name,
                                 "## Created at " + time.strftime("%H:%M:%S on %d/%m/%Y")])
 
@@ -58,7 +60,7 @@ class NotebookTask(SlurmTask):
         self.luigi_meta()
 
         # Actually run the notebook here
-        ep = nbconvert.preprocessors.ExecutePreprocessor(timeout=None)
+        ep = nbconvert.preprocessors.ExecutePreprocessor(timeout=-1)
         ep.preprocess(self.nb, {})
 
         # Make the HTML conversion

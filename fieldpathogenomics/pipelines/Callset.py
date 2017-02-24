@@ -15,14 +15,14 @@ from fieldpathogenomics.utils import CheckTargetNonEmpty, gatk, snpeff, snpsift
 from fieldpathogenomics.SGUtils import ScatterBED, GatherVCF, ScatterVCF
 from fieldpathogenomics.luigi.scattergather import ScatterGather
 from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
-
+from fieldpathogenomics.luigi.notebook import NotebookTask
 import fieldpathogenomics.utils as utils
 import fieldpathogenomics.pipelines.Library as Library
 
 python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 FILE_HASH = utils.file_hash(__file__)
-VERSION = fieldpathogenomics.__version__.rsplit('.',1)[0]
+VERSION = fieldpathogenomics.__version__.rsplit('.', 1)[0]
 PIPELINE = os.path.basename(__file__).split('.')[0]
 
 '''
@@ -291,6 +291,22 @@ class HD5s(luigi.WrapperTask):
         yield self.clone(requires(GetSNPs)(VCFtoHDF5))
 
 
+@requires(requires(GetSNPs)(VCFtoHDF5))
+@inherits(GetSNPs)
+class SNPsNotebook(NotebookTask):
+    def __init__(self, *args, **kwargs):
+        super().__init__(notebook=os.path.join(utils.notebooks, 'Callset', 'SNPs.ipynb',
+                         vars_dict={'SNPS_HD5': self.input().path}))
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, 'QC', 'SNPs.ipynb'))
+
+
+@inherits(SNPsNotebook)
+class QCNotebooks(luigi.WrapperTask):
+    def requires(self):
+        yield self.clone(SNPsNotebook)
+
 @requires(GetSNPs)
 class SnpEff(SlurmExecutableTask, CheckTargetNonEmpty):
 
@@ -430,6 +446,7 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
 @inherits(GetRefSNPs)
 @inherits(GetINDELs)
 @inherits(HD5s)
+@inherits(SNPsNotebook)
 class CallsetWrapper(luigi.WrapperTask):
 
     def requires(self):
@@ -437,6 +454,7 @@ class CallsetWrapper(luigi.WrapperTask):
         yield self.clone(GetSyn)
         yield self.clone(GetRefSNPs)
         yield self.clone(HD5s)
+        yield self.clone(SNPsNotebook)
 
 
 if __name__ == '__main__':

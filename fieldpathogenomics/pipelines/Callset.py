@@ -295,8 +295,9 @@ class HD5s(luigi.WrapperTask):
 @inherits(GetSNPs)
 class SNPsNotebook(NotebookTask):
     def __init__(self, *args, **kwargs):
-        super().__init__(notebook=os.path.join(utils.notebooks, 'Callset', 'SNPs.ipynb',
-                         vars_dict={'SNPS_HD5': self.input().path}))
+        super().__init__()
+        self.notebook = os.path.join(utils.notebooks, 'Callset', 'SNPs.ipynb')
+        self.vars_dict = {'SNPS_HD5': self.input().path}
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, 'QC', 'SNPs.ipynb'))

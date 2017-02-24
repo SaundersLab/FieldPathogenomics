@@ -58,7 +58,7 @@ class NotebookTask(SlurmTask):
         self.luigi_meta()
 
         # Actually run the notebook here
-        ep = nbconvert.preprocessors.ExecutePreprocessor()
+        ep = nbconvert.preprocessors.ExecutePreprocessor(timeout=None)
         ep.preprocess(self.nb, {})
 
         # Make the HTML conversion

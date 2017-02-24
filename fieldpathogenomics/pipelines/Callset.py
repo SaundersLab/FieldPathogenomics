@@ -295,9 +295,10 @@ class HD5s(luigi.WrapperTask):
 @inherits(GetSNPs)
 class SNPsNotebook(NotebookTask):
     def __init__(self, *args, **kwargs):
-        super().__init__()
+        super().__init__(*args, **kwargs)
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'SNPs.ipynb')
         self.vars_dict = {'SNPS_HD5': self.input().path}
+        logger.info(str(self.vars_dict))
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, 'QC', 'SNPs.ipynb'))
@@ -448,7 +449,7 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
 @inherits(GetRefSNPs)
 @inherits(GetINDELs)
 @inherits(HD5s)
-@inherits(SNPsNotebook)
+@inherits(QCNotebooks)
 class CallsetWrapper(luigi.WrapperTask):
 
     def requires(self):
@@ -456,7 +457,7 @@ class CallsetWrapper(luigi.WrapperTask):
         yield self.clone(GetSyn)
         yield self.clone(GetRefSNPs)
         yield self.clone(HD5s)
-        yield self.clone(SNPsNotebook)
+        yield self.clone(QCNotebooks)
 
 
 if __name__ == '__main__':

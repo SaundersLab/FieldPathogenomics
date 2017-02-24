@@ -307,6 +307,7 @@ class QCNotebooks(luigi.WrapperTask):
     def requires(self):
         yield self.clone(SNPsNotebook)
 
+
 @requires(GetSNPs)
 class SnpEff(SlurmExecutableTask, CheckTargetNonEmpty):
 

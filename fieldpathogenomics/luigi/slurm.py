@@ -79,11 +79,15 @@ class SlurmExecutableTask(luigi.Task, SlurmMixin):
         self.job_name = self.task_family
 
     def run(self):
+
+        # Write the launch script to file
         self._init_tmp()
         self.launcher = os.path.join(self.tmp_dir, "launch.sh")
 
         with open(self.launcher, 'w') as l:
             l.write(self.work_script())
+        # Make executable
+        os.chmod(self.launcher, os.stat(self.launcher).st_mode | 0o111)
 
         if self.run_locally:
             self.completedprocess = subprocess.run(

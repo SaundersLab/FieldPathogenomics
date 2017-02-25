@@ -75,9 +75,11 @@ class ClusterBase(object):
         '''Handles reading either the local CompletedProcess or the SLURM log files'''
         ret = ''
         if self.run_locally:
+            ret += "\nstderr " + self.task_id + ": "
             if self.stderr is not None:
                 ret += self.stderr.replace("\n", "\nstderr " + self.task_id + ": ")
 
+            ret += "\nstdout " + self.task_id + ": "
             if self.stdout is not None:
                 ret += self.stdout.replace("\n", "\nstdout " + self.task_id + ": ")
 

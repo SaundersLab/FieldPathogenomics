@@ -2,6 +2,17 @@
 import luigi
 from luigi import Target, LocalTarget
 from luigi.util import inherits
+import os
+
+
+def get_ext(path):
+    '''Split path into base and extention, gracefully handling compressed extensions eg .gz'''
+    base, ext1 = os.path.splitext(path)
+    if ext1 == '.gz':
+        base, ext2 = os.path.splitext(base)
+        return base, ext2 + ext1
+    else:
+        return base, ext1
 
 
 def indextarget(struct, idx):
@@ -9,11 +20,8 @@ def indextarget(struct, idx):
     Maps all Targets in a structured output to an indexed temporary file
     """
     if isinstance(struct, Target):
-        base, *ext = struct.path.rsplit('.', maxsplit=1)
-        if len(ext) > 0:
-            return LocalTarget(base + "_" + str(idx) + "." + ext[0])
-        else:
-            return LocalTarget(base + "_" + str(idx))
+        base, ext = get_ext(struct.path)
+        return LocalTarget(base + "_" + str(idx) + ext)
 #    elif isinstance(struct, list):
 #        indextarget(struct[0], idx)
     else:

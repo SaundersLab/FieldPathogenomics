@@ -20,6 +20,8 @@ script_dir = os.path.join(os.path.split(__file__)[0], 'scripts')
 
 class ScatterVCF(SlurmExecutableTask):
 
+    block_size = luigi.IntParameter(default=10000)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
@@ -45,7 +47,7 @@ class ScatterVCF(SlurmExecutableTask):
 
                 mkdir -p {dir}/temp
 
-                bgzip -cd {input} | python {script_dir}/splitVCF.py {dir}/temp/{base} {N_scatter}
+                bgzip -cd {input} | python {script_dir}/splitVCF.py {dir}/temp/{base} {N_scatter} {bs}
 
                 for file in {dir}/temp/{base}_*
                 do
@@ -59,7 +61,8 @@ class ScatterVCF(SlurmExecutableTask):
                            base=base,
                            script_dir=script_dir,
                            input=self.input().path,
-                           N_scatter=len(self.output()))
+                           N_scatter=len(self.output()),
+                           bs=self.block_size)
 
 
 class ScatterBED(luigi.Task, CheckTargetNonEmpty):

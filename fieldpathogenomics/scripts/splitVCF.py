@@ -7,7 +7,7 @@ import itertools
 base = sys.argv[1]
 N_split = int(sys.argv[2])
 
-block_size = 1000
+block_size = int(sys.argv[3])
 
 
 def start_bgzip(base, i):

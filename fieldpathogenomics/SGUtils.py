@@ -3,8 +3,8 @@ import os
 import math
 
 import luigi
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
-from fieldpathogenomics.utils import CheckTargetNonEmpty
+from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
+from fieldpathogenomics.utils import CheckTargetNonEmpty, get_ext
 
 import logging
 logger = logging.getLogger('luigi-interface')
@@ -18,9 +18,7 @@ python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 script_dir = os.path.join(os.path.split(__file__)[0], 'scripts')
 
 
-class ScatterVCF(SlurmExecutableTask):
-
-    block_size = luigi.IntParameter(default=10000)
+class ScatterVCF(SlurmTask):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,33 +34,69 @@ class ScatterVCF(SlurmExecutableTask):
         else:
             logger.info("Re-using existing scatter")
 
-    def work_script(self):
-        dir, filename = os.path.split(self.output()[0].path)
-        base, idx = filename.rsplit('_', maxsplit=1)
+    def work(self):
+        import subprocess
+        import itertools
+        import gzip
 
-        return '''#!/bin/bash -e
-                source vcftools-0.1.13;
-                {python}
-                set -euo pipefail
+        zipped = get_ext(self.input().path)[1] == '.vcf.gz'
+        if zipped:
 
-                mkdir -p {dir}/temp
+            proc = subprocess.run("zgrep -ve'#' < {} |  wc -l ".format(self.input().path),
+                                  shell=True, universal_newlines=True,
+                                  stdout=subprocess.PIPE)
 
-                bgzip -cd {input} | python {script_dir}/splitVCF.py {dir}/temp/{base} {N_scatter} {bs}
+            # Create subprocesses to perform the compression
+            bgzip_procs = [subprocess.Popen('/tgac/software/production/tabix/0.2.6/x86_64/bin/bgzip -c > {0}'.format(fout.path),
+                                          shell=True, stdin=subprocess.PIPE, bufsize=1, universal_newlines=True)
+                           for fout in self.output()]
+            fouts = [p.stdin for p in bgzip_procs]
 
-                for file in {dir}/temp/{base}_*
-                do
-                  tabix -p vcf "$file"
-                done
+            file_context = gzip.open(self.input().path, 'rt')
+        else:
+            proc = subprocess.run("grep -ve'#' < {} | wc -l  ".format(self.input().path),
+                                  shell=True, universal_newlines=True,
+                                  stdout=subprocess.PIPE)
+            fouts = [f.open('w') for f in self.output()]
+            file_context = self.input().open('r')
 
-                mv {dir}/temp/* {dir}
-                rmdir {dir}/temp
-                '''.format(python=python,
-                           dir=dir,
-                           base=base,
-                           script_dir=script_dir,
-                           input=self.input().path,
-                           N_scatter=len(self.output()),
-                           bs=self.block_size)
+        flen = int(proc.stdout.strip())
+        print("FILE LENGTH = {}".format(flen))
+        output_cycle = itertools.chain.from_iterable([itertools.repeat(p, flen // len(fouts))
+                                                      for p in fouts])
+        header, got_header = '', False
+
+        with file_context as fin:
+            for line in fin:
+                # Catch the header
+                if got_header is False:
+                    if line[0] == '#':
+                        header += line
+                        continue
+                    elif header is '':
+                        raise Exception("No header on input VCF stream")
+                    else:
+                        got_header = True
+                        for f in fouts:
+                            f.write(header)
+                try:
+                    # Main output
+                    next(output_cycle).write(line)
+                except StopIteration:
+                    # Clean up any remaining line to last file
+                    fouts[-1].write(line)
+
+        if zipped:
+            # Create subprocesses to perform the compression
+            for i, p in enumerate(bgzip_procs):
+                p.stdin.flush()
+                p.stdin.close()
+                p.wait()
+                if p.returncode != 0:
+                    raise Exception("BZGIP process for file {0} failed".format(self.output()[i].path))
+        else:
+            for f in fouts:
+                f.close()
 
 
 class ScatterBED(luigi.Task, CheckTargetNonEmpty):

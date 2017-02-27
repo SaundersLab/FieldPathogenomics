@@ -154,6 +154,57 @@ class GatherVCF(SlurmExecutableTask, CheckTargetNonEmpty):
                            )
 
 
+class GatherHD5s(luigi.SlurmTask):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+
+    def work(self):
+        import dask.array as da
+        import numpy as np
+        import h5py
+        from luigi.file import atomic_file
+
+        fs = [h5py.File(f.path, mode='r') for f in self.input()]
+
+        # Verify all H5s have the same structure
+        datasets, groups = [[] for x in fs], [[] for x in fs]
+        for i, f in enumerate(fs):
+            f.visititems(lambda n, o: datasets[i].append(n) if isinstance(o, h5py.Dataset) else groups[i].append(n))
+        if not all([set(datasets[0]) == set(x) for x in datasets]):
+            raise Exception("All HDF5 files must have the same groups/datasets!")
+        datasets, groups = datasets[0], groups[0]
+
+        combined = {d: da.concatenate([da.from_array(f[d], chunks=100000) for f in fs]) for d in datasets}
+
+        shapes = [(np.sum([f.get(d).shape for f in fs], axis=0)[0], *fs[0].get(d).shape[1:]) for d in datasets]
+        dtypes = [fs[0].get(d).dtype for d in datasets]
+
+        af = atomic_file(self.output().path)
+        fout = h5py.File(af.tmp_path, 'w')
+
+        # Set up group structure
+        for g in groups:
+            fout.create_group(g)
+
+        # Create the datasets
+        out_datasets = {}
+        for p, dtype, shape in zip(datasets, dtypes, shapes):
+            g, d = os.path.split(p)
+            out_datasets[p] = (fout[g] if g else fout).create_dataset(d, shape=shape, dtype=dtype,
+                                                                      chunks=True, compression='gzip')
+        for k in combined.keys():
+            s = da.store(combined[k], out_datasets[k], compute=False)
+            s.compute(num_workers=self.n_cpu)
+            print("Done " + k)
+
+        af.move_to_final_destination()
+
+
 class GatherCat(SlurmExecutableTask, CheckTargetNonEmpty):
 
     def __init__(self, *args, **kwargs):

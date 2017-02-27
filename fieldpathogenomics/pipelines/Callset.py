@@ -12,7 +12,7 @@ from luigi.file import TemporaryFile
 
 import fieldpathogenomics
 from fieldpathogenomics.utils import CheckTargetNonEmpty, gatk, snpeff, snpsift
-from fieldpathogenomics.SGUtils import ScatterBED, GatherVCF, ScatterVCF
+from fieldpathogenomics.SGUtils import ScatterBED, GatherVCF, ScatterVCF, GatherHD5s
 from fieldpathogenomics.luigi.scattergather import ScatterGather
 from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
 from fieldpathogenomics.luigi.notebook import NotebookTask
@@ -239,6 +239,7 @@ class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 
 
+@ScatterGather(ScatterVCF, GatherHD5s, 5)
 class VCFtoHDF5(SlurmExecutableTask):
 
     def __init__(self, *args, **kwargs):
@@ -257,25 +258,25 @@ class VCFtoHDF5(SlurmExecutableTask):
         return dict(list(sup.items()) + list(extras.items()))
 
     def work_script(self):
-        self.temp1 = TemporaryFile()
         cache_dir = self.output().path + '.cache'
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
         return '''#!/bin/bash
                 {python}
                 rm {output}.temp
+                source vcftools-0.1.13
                 set -eo pipefail
-                gzip -cd {input} > {temp1}
 
-                vcf2npy --vcf {temp1} --arity 'AD:6' --array-type calldata_2d --output-dir {cache_dir}
-                vcf2npy --vcf {temp1} --arity 'AD:6' --array-type variants --output-dir {cache_dir}
+                tabix -p vcf {input}
 
-                vcfnpy2hdf5 --vcf {temp1} --input-dir {cache_dir} --output {output}.temp
+                vcf2npy --vcf {input} --arity 'AD:6' --array-type calldata_2d --output-dir {cache_dir}
+                vcf2npy --vcf {input} --arity 'AD:6' --array-type variants --output-dir {cache_dir}
+
+                vcfnpy2hdf5 --vcf {input} --input-dir {cache_dir} --output {output}.temp
 
                 mv {output}.temp {output}
                 '''.format(python=python,
                            input=self.input().path,
-                           temp1=self.temp1.path + '.vcf',
                            cache_dir=cache_dir,
                            output=self.output().path)
 

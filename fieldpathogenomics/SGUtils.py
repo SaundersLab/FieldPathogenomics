@@ -154,7 +154,7 @@ class GatherVCF(SlurmExecutableTask, CheckTargetNonEmpty):
                            )
 
 
-class GatherHD5s(luigi.SlurmTask):
+class GatherHD5s(SlurmTask):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

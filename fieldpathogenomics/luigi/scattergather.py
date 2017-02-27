@@ -1,4 +1,3 @@
-
 import luigi
 from luigi import Target, LocalTarget
 from luigi.util import inherits
@@ -80,6 +79,7 @@ class ScatterGather():
                 extras = {'input': self.input().path, 'N': str(meta_self.N)}
                 return dict(list(sup.items()) + list(extras.items()))
 
+        Scatter.clone_parent = meta_self.workTask.clone_parent
         return Scatter
 
     def metaProgWork(self, worktask):
@@ -116,7 +116,7 @@ class ScatterGather():
                 return [self.clone(meta_self.Work, SG_index=i) for i in range(meta_self.N)]
 
             def output(self):
-                return meta_self.workTask.output(self)
+                return meta_self.workTask.output(self.clone(meta_self.Work, SG_index=0))
 
             def to_str_params(self, only_significant=False):
                 sup = super().to_str_params(only_significant)

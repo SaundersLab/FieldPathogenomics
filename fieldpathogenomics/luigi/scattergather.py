@@ -2,17 +2,7 @@
 import luigi
 from luigi import Target, LocalTarget
 from luigi.util import inherits
-import os
-
-
-def get_ext(path):
-    '''Split path into base and extention, gracefully handling compressed extensions eg .gz'''
-    base, ext1 = os.path.splitext(path)
-    if ext1 == '.gz':
-        base, ext2 = os.path.splitext(base)
-        return base, ext2 + ext1
-    else:
-        return base, ext1
+from fieldpathogenomics.utils import get_ext
 
 
 def indextarget(struct, idx):

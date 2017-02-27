@@ -239,7 +239,6 @@ class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 
 
-@ScatterGather(ScatterVCF, GatherHD5s, 5)
 class VCFtoHDF5(SlurmExecutableTask):
 
     def __init__(self, *args, **kwargs):
@@ -287,44 +286,44 @@ class VCFtoHDF5(SlurmExecutableTask):
 class HD5s(luigi.WrapperTask):
 
     def requires(self):
-        yield self.clone(requires(GenotypeGVCF)(VCFtoHDF5))
-        yield self.clone(requires(VcfToolsFilter)(VCFtoHDF5))
-        yield self.clone(requires(GetSNPs)(VCFtoHDF5))
+        return {'raw': self.clone(ScatterGather(ScatterVCF, GatherHD5s, 5)(requires(GenotypeGVCF)(VCFtoHDF5))),
+                'filtered': self.clone(ScatterGather(ScatterVCF, GatherHD5s, 5)(requires(VcfToolsFilter)(VCFtoHDF5))),
+                'snps': self.clone(ScatterGather(ScatterVCF, GatherHD5s, 5)(requires(GetSNPs)(VCFtoHDF5)))}
+
+    def output(self):
+        return self.input()
 
 
-@requires(requires(GetSNPs)(VCFtoHDF5))
-@inherits(GetSNPs)
+@requires(HD5s)
 class SNPsNotebook(NotebookTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'SNPs.ipynb')
-        self.vars_dict = {'SNPS_HD5': self.input().path}
+        self.vars_dict = {'SNPS_HD5': self.input()['snps'].path}
         logger.info(str(self.vars_dict))
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, 'QC', 'SNPs.ipynb'))
 
 
-@requires(requires(VcfToolsFilter)(VCFtoHDF5))
-@inherits(GetSNPs)
+@requires(HD5s)
 class FilteredNotebook(NotebookTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'Filtered.ipynb')
-        self.vars_dict = {'FILTERED_HD5': self.input().path}
+        self.vars_dict = {'FILTERED_HD5': self.input()['filtered'].path}
         logger.info(str(self.vars_dict))
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, 'QC', 'Filtered.ipynb'))
 
 
-@requires(requires(GenotypeGVCF)(VCFtoHDF5))
-@inherits(GenotypeGVCF)
+@requires(HD5s)
 class RawNotebook(NotebookTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'Raw.ipynb')
-        self.vars_dict = {'RAW_HD5': self.input().path}
+        self.vars_dict = {'RAW_HD5': self.input()['raw'].path}
         logger.info(str(self.vars_dict))
 
     def output(self):

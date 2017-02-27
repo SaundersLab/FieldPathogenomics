@@ -2,8 +2,9 @@ import os
 import re
 import subprocess
 import luigi
-import pickle
+import pickle as pickle
 import sys
+import dill
 import inspect
 
 from fieldpathogenomics.luigi.cluster import ClusterBase
@@ -150,13 +151,23 @@ class SlurmTask(SlurmExecutableTask):
         """Dump instance to file."""
         with self.no_unpicklable_properties():
             self.job_file = os.path.join(self.tmp_dir, 'job-instance.pickle')
-            if self.__module__ == '__main__':
-                module_name = os.path.basename(sys.argv[0]).rsplit('.', 1)[0]
-                d = pickle.dumps(self)
-                d = d.replace(b'c__main__', b"c" + module_name.encode())
-                open(self.job_file, "wb").write(d)
-            else:
-                pickle.dump(self, open(self.job_file, "wb"))
+            logger.info(self.__module__)
+            try:
+                if self.__module__ == '__main__':
+                    module_name = os.path.basename(sys.argv[0]).rsplit('.', 1)[0]
+                    d = pickle.dumps(self)
+                    d = d.replace(b'c__main__', b"c" + module_name.encode())
+                    open(self.job_file, "wb").write(d)
+                else:
+                    pickle.dump(self, open(self.job_file, "wb"))
+            except:
+                from copy import deepcopy
+                input = deepcopy(self.input())
+                output = deepcopy(self.output())
+                work = deepcopy(self.__class__.work)
+
+                dummy = {k: deepcopy(v) for k, v in list(self.__dict__.items()) + [('input', lambda x: input), ('output', lambda x: output), ('work', work)]}
+                dill.dump(dummy, open(self.job_file, "wb"))
 
     def run(self):
         # Bit of a hack, _init_tmp() also gets called again inside super().run()

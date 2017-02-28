@@ -187,7 +187,7 @@ class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
                 vcftools --gzvcf {temp2} --recode --max-missing 0.000001 --stdout --bed {mask} | bgzip -c > {output}.temp
 
                 mv {output}.temp {output}
-                tabix -p vcf {output}
+                tabix -f -p vcf {output}
                 '''.format(input=self.input().path,
                            output=self.output().path,
                            GQ=self.GQ,
@@ -234,7 +234,7 @@ class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                   rm {output}.temp.vcf.gz
                   mv {output}.temp2.vcf.gz {output}
                   '''.format(input=self.input().path,
-                             output=self.output().path,
+                             output=self.ouqtput().path,
                              reference=self.reference,
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 
@@ -266,7 +266,7 @@ class VCFtoHDF5(SlurmExecutableTask):
                 source vcftools-0.1.13
                 set -eo pipefail
 
-                tabix -p vcf {input}
+                tabix -f -p vcf {input}
 
                 vcf2npy --vcf {input} --arity 'AD:6' --array-type calldata_2d --output-dir {cache_dir}
                 vcf2npy --vcf {input} --arity 'AD:6' --array-type variants --output-dir {cache_dir}

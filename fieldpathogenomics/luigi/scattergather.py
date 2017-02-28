@@ -102,7 +102,8 @@ class ScatterGather():
                 return [scattered] + inp[1:] if isinstance(super().requires(), list) else scattered
 
             def output(self):
-                return indextarget(super().output(), self.SG_index)
+                s = self.clone(meta_self.workTask)
+                return indextarget(meta_self.workTask.output(s), self.SG_index)
         return Work
 
     def metaProgGather(self, gathertask):
@@ -116,7 +117,7 @@ class ScatterGather():
                 return [self.clone(meta_self.Work, SG_index=i) for i in range(meta_self.N)]
 
             def output(self):
-                return meta_self.workTask.output(self.clone(meta_self.Work, SG_index=0))
+                return meta_self.workTask.output(self.clone(meta_self.workTask))
 
             def to_str_params(self, only_significant=False):
                 sup = super().to_str_params(only_significant)

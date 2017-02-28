@@ -172,17 +172,26 @@ class GatherHD5s(SlurmTask):
         fs = [h5py.File(f.path, mode='r') for f in self.input()]
 
         # Verify all H5s have the same structure
-        datasets, groups = [[] for x in fs], [[] for x in fs]
+        datasets, groups, samples = [[] for x in fs], [[] for x in fs], [[] for x in fs]
         for i, f in enumerate(fs):
             f.visititems(lambda n, o: datasets[i].append(n) if isinstance(o, h5py.Dataset) else groups[i].append(n))
-        if not all([set(datasets[0]) == set(x) for x in datasets]):
-            raise Exception("All HDF5 files must have the same groups/datasets!")
-        datasets, groups = datasets[0], groups[0]
+            samples[i] = f['samples'][:]
+        if not all([set(datasets[0]) == set(x) for x in datasets]) and np.all(samples == samples[0], axis=0):
+            raise Exception("All HDF5 files must have the same groups/datasets/samples!")
+        datasets, groups, samples = datasets[0], groups[0], samples[0]
 
+        # Drop Samples dataset and handle separately
+        datasets = [x for x in datasets if x != 'samples']
         combined = {d: da.concatenate([da.from_array(f[d], chunks=100000) for f in fs]) for d in datasets}
 
         shapes = [(np.sum([f.get(d).shape for f in fs], axis=0)[0], *fs[0].get(d).shape[1:]) for d in datasets]
         dtypes = [fs[0].get(d).dtype for d in datasets]
+
+        # Handles Samples dataset
+        datasets.append('samples')
+        combined.update({'samples': da.from_array(fs[0]['samples'], chunks=1)})
+        shapes.append(samples.shape)
+        dtypes.append(samples.dtype)
 
         af = atomic_file(self.output().path)
         fout = h5py.File(af.tmp_path, 'w')

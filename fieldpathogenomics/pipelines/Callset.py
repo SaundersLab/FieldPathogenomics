@@ -502,6 +502,6 @@ if __name__ == '__main__':
 
     luigi.run(['CallsetWrapper', '--output-prefix', name,
                                  '--lib-list', json.dumps(lib_list),
-                                 '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
-                                 '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
+                                 '--star-genome', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/genome/',
+                                 '--reference', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/PST130_contigs.fasta',
                                  '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])

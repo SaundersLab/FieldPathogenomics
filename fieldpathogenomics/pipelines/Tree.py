@@ -317,7 +317,7 @@ if __name__ == '__main__':
 
     luigi.run(['RAxML_Combine', '--output-prefix', name,
                         '--lib-list', json.dumps(lib_list),
-                        '--star-genome', '/tgac/workarea/collaborators/saunderslab/Realignment/data/genome/',
-                        '--gff', '/tgac/workarea/collaborators/saunderslab/FP_pipeline/reference/PST_genes_final.gff3',
-                        '--reference', '/tgac/workarea/collaborators/saunderslab/Realignment/data/PST130_contigs.fasta',
-                        '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])
+                        '--star-genome', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/genome/',
+                        '--gff', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/PST_genes_final.gff3',
+                        '--reference', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/PST130_contigs.fasta',
+                        '--mask', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])

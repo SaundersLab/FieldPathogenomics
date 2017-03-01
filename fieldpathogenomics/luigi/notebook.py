@@ -49,20 +49,24 @@ class NotebookTask(SlurmTask):
         import os
         import time
 
+        print("Checking out NB template")
         # Checks out notebook template from repo
         with open(self.notebook, 'r') as fin:
             self.nb = nbformat.read(fin, as_version=4)
 
+        print("Populating variables")
         # Populates variable and metadata
         for i, cell in enumerate(self.nb['cells']):
             if re.match('^##luigi-vars', cell['source']):
                 self.luigi_vars(i)
         self.luigi_meta()
 
+        print("Running NB")
         # Actually run the notebook here
         ep = nbconvert.preprocessors.ExecutePreprocessor(timeout=-1)
         ep.preprocess(self.nb, {})
 
+        print("Starting HTML conversion")
         # Make the HTML conversion
         html = nbconvert.html.HTMLExporter()
         (body, resources) = html.from_notebook_node(self.nb)
@@ -71,5 +75,6 @@ class NotebookTask(SlurmTask):
         with open(self.output().path.split('.ipynb')[0] + '.html', 'w') as fout:
             fout.write(body)
 
+        print("Writing NB")
         with self.output().open('w') as fout:
             nbformat.write(self.nb, fout)

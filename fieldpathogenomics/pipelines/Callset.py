@@ -298,6 +298,9 @@ class HD5s(luigi.WrapperTask):
 class SNPsNotebook(NotebookTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'SNPs.ipynb')
         self.vars_dict = {'SNPS_HD5': self.input()['snps'].path}
         logger.info(str(self.vars_dict))
@@ -310,6 +313,9 @@ class SNPsNotebook(NotebookTask):
 class FilteredNotebook(NotebookTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'Filtered.ipynb')
         self.vars_dict = {'FILTERED_HD5': self.input()['filtered'].path}
         logger.info(str(self.vars_dict))
@@ -322,6 +328,9 @@ class FilteredNotebook(NotebookTask):
 class RawNotebook(NotebookTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'Raw.ipynb')
         self.vars_dict = {'RAW_HD5': self.input()['raw'].path}
         logger.info(str(self.vars_dict))

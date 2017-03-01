@@ -234,7 +234,7 @@ class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                   rm {output}.temp.vcf.gz
                   mv {output}.temp2.vcf.gz {output}
                   '''.format(input=self.input().path,
-                             output=self.ouqtput().path,
+                             output=self.output().path,
                              reference=self.reference,
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 

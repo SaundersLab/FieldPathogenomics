@@ -328,11 +328,12 @@ class FilteredNotebook(NotebookTask):
 class RawNotebook(NotebookTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.mem = 8000
-        self.n_cpu = 1
+        self.mem = 4000
+        self.n_cpu = 2
         self.partition = "tgac-medium"
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'Raw.ipynb')
-        self.vars_dict = {'RAW_HD5': self.input()['raw'].path}
+        self.vars_dict = {'RAW_HD5': self.input()['raw'].path,
+                          'NCPU': self.n_cpu}
         logger.info(str(self.vars_dict))
 
     def output(self):

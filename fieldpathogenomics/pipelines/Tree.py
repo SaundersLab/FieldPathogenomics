@@ -12,13 +12,6 @@ import luigi
 from luigi.util import requires, inherits
 from luigi import LocalTarget
 
-picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
-gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.6.0/x86_64/bin/GenomeAnalysisTK.jar "
-snpeff = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4.3g/x86_64/snpEff.jar "
-snpsift = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4.3g/x86_64/SnpSift.jar "
-
-python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
-
 FILE_HASH = utils.file_hash(__file__)
 PIPELINE = os.path.basename(__file__).split('.')[0]
 VERSION = fieldpathogenomics.__version__.rsplit('.', 1)[0]
@@ -82,7 +75,7 @@ class GetSingleSample(SlurmExecutableTask, CheckTargetNonEmpty):
 
                 $picard IntervalListTools I={vcf} INVERT=true O=/dev/stdout | $picard IntervalListToBed I=/dev/stdin O={mask}.temp
                 mv {mask}.temp {mask}
-                '''.format(picard=picard.format(mem=self.mem),
+                '''.format(picard=utils.picard.format(mem=self.mem),
                            input=self.input().path,
                            vcf=self.output()[0].path,
                            mask=self.output()[1].path,

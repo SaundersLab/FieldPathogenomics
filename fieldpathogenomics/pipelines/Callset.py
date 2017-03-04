@@ -19,7 +19,6 @@ from fieldpathogenomics.luigi.notebook import NotebookTask
 import fieldpathogenomics.utils as utils
 import fieldpathogenomics.pipelines.Library as Library
 
-python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
 
 FILE_HASH = utils.file_hash(__file__)
 VERSION = fieldpathogenomics.__version__.rsplit('.', 1)[0]
@@ -274,7 +273,7 @@ class VCFtoHDF5(SlurmExecutableTask):
                 vcfnpy2hdf5 --vcf {input} --input-dir {cache_dir} --output {output}.temp
 
                 mv {output}.temp {output}
-                '''.format(python=python,
+                '''.format(python=utils.python,
                            input=self.input().path,
                            cache_dir=cache_dir,
                            output=self.output().path)

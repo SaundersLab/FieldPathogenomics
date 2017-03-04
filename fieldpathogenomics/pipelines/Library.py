@@ -16,11 +16,9 @@ from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
 
 import fieldpathogenomics.utils as utils
 
-python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
-
 FILE_HASH = utils.file_hash(__file__)
 PIPELINE = os.path.basename(__file__).split('.')[0]
-VERSION = fieldpathogenomics.__version__.rsplit('.',1)[0]
+VERSION = fieldpathogenomics.__version__.rsplit('.', 1)[0]
 
 '''
 

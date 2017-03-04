@@ -14,12 +14,9 @@ from fieldpathogenomics.utils import CheckTargetNonEmpty
 import fieldpathogenomics.utils as utils
 import fieldpathogenomics.pipelines.Library as Library
 
-picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
-python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
-
 FILE_HASH = utils.file_hash(__file__)
 PIPELINE = os.path.basename(__file__).split('.')[0]
-VERSION = fieldpathogenomics.__version__.rsplit('.',1)[0]
+VERSION = fieldpathogenomics.__version__.rsplit('.', 1)[0]
 
 # -----------------------------StringTie------------------------------- #
 
@@ -480,7 +477,7 @@ class MikadoConfigure(SlurmExecutableTask, CheckTargetNonEmpty):
                                     -bt {db} \
                                     {output}.temp
                 mv {output}.temp {output}
-                '''.format(python=python,
+                '''.format(python=utils.python,
                            list=self.list(),
                            temp=self.temp.path,
                            reference=self.reference,
@@ -512,7 +509,7 @@ class MikadoPrepare(CheckTargetNonEmpty, SlurmExecutableTask):
 
                   mv {gtf}.temp {gtf}
                   mv {fasta}.temp {fasta}
-                '''.format(python=python,
+                '''.format(python=utils.python,
                            gtf=self.output()['gtf'].path,
                            fasta=self.output()['fasta'].path,
                            conf=self.input().path)
@@ -611,7 +608,7 @@ class MikadoSerialise(CheckTargetNonEmpty, SlurmExecutableTask):
                   mikado serialise  --orfs {orfs} --xml {blast} --json-conf {conf} {output}.temp
 
                   mv {output}.temp {output}
-                '''.format(python=python,
+                '''.format(python=utils.python,
                            output_dir=os.path.split(self.output().path)[0],
                            orfs=self.input()['orfs'].path,
                            blast=self.input()['blast'].path,
@@ -648,7 +645,7 @@ class MikadoPick(CheckTargetNonEmpty, SlurmExecutableTask):
                   mikado pick -p {n_cpu} --json-conf {conf} -db {db} --loci_out {output}.temp --log /dev/stderr
 
                   mv {output}.temp.gff3 {output}
-                '''.format(python=python,
+                '''.format(python=utils.python,
                            n_cpu=self.n_cpu,
                            output_dir=os.path.split(self.output().path)[0],
                            gff=self.input()['prep']['gtf'].path,
@@ -679,7 +676,7 @@ class MikadoCompare(CheckTargetNonEmpty, SlurmExecutableTask):
                   mikado pick -p {n_cpu} --json-conf {conf} -db {db} --loci_out {output}.temp --log /dev/stderr
 
                   mv {output}.temp.gff3 {output}
-                '''.format(python=python,
+                '''.format(python=utils.python,
                            n_cpu=self.n_cpu,
                            output_dir=os.path.split(self.output().path)[0],
                            gff=self.input()['prep']['gtf'].path,

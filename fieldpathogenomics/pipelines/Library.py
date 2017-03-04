@@ -84,7 +84,7 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
     def output(self):
         return [LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, "filtered_R1.fastq.gz")),
                 LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, "filtered_R2.fastq.gz")),
-                LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library, self.library + "_trimmomatic.txt"))]
+                LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.library, self.library + "_trimmomatic.txt"))]
 
     def work_script(self):
         return '''#!/bin/bash
@@ -126,7 +126,7 @@ class FastxQC(SlurmExecutableTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        working_dir = os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library)
+        working_dir = os.path.join(self.base_dir, VERSION, PIPELINE, self.library)
         return {'stats_R1': LocalTarget(os.path.join(working_dir, 'QC', self.library + "_R1_stats.txt")),
                 'stats_R2': LocalTarget(os.path.join(working_dir, 'QC', self.library + "_R2_stats.txt")),
                 'boxplot_R1': LocalTarget(os.path.join(working_dir, 'QC', self.library + "_R1_quality.png")),
@@ -205,7 +205,7 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
     def output(self):
         return {
             'star_bam': LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, 'Aligned.sortedByCoord.out.bam')),
-            'star_log': LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library, 'Log.final.out'))
+            'star_log': LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.library, 'Log.final.out'))
         }
 
     def work_script(self):
@@ -246,8 +246,8 @@ class FastQC(CheckTargetNonEmpty, SlurmExecutableTask):
             self.partition = "tgac-medium"
 
         def output(self):
-            return [LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library, 'QC', 'R1', 'fastqc_data.txt')),
-                    LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library, 'QC', 'R2', 'fastqc_data.txt'))]
+            return [LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.library, 'QC', 'R1', 'fastqc_data.txt')),
+                    LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.library, 'QC', 'R2', 'fastqc_data.txt'))]
 
         def work_script(self):
             return '''#!/bin/bash
@@ -393,7 +393,7 @@ class MarkDuplicates(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
         self.partition = "tgac-short"
 
     def output(self):
-        return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library, self.library + '.bam'))
+        return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.library, self.library + '.bam'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -427,7 +427,7 @@ class PortcullisFilterBam(SlurmExecutableTask):
         if self.portcullis_junc == '':
             return self.input()
         else:
-            return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library, 'portcullis.bam'))
+            return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.library, 'portcullis.bam'))
 
     def on_success(self):
         if self.portcullis_junc == '':
@@ -478,7 +478,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
         if self.snp_db == '':
             return self.input()
         else:
-            return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library, 'recalibrated.bam'))
+            return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.library, 'recalibrated.bam'))
 
     def on_success(self):
         if self.snp_db == '':
@@ -497,7 +497,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
             super().run()
 
     def work_script(self):
-        recal = os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library, self.library + "_recal.tsv")
+        recal = os.path.join(self.base_dir, VERSION, PIPELINE, self.library, self.library + "_recal.tsv")
         return '''#!/bin/bash
                   source jre-8u92
                   source gatk-3.6.0
@@ -564,7 +564,7 @@ class HaplotypeCaller(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
 
 
     def output(self):
-        return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'libraries', self.library, self.library + ".g.vcf"))
+        return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.library, self.library + ".g.vcf"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -600,7 +600,7 @@ class PlotAlleleFreq(SlurmTask):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, 'libraries', self.library, 'QC', self.library + "_allele_freqs.pdf"))
+        return LocalTarget(os.path.join(self.base_dir, self.library, 'QC', self.library + "_allele_freqs.pdf"))
 
     def work(self):
         import vcfnp

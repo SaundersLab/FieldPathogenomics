@@ -132,7 +132,7 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, self.output_prefix + "_raw.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_raw.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -170,7 +170,7 @@ class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, self.output_prefix + "_filtered.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_filtered.vcf.gz"))
 
     def work_script(self):
         self.temp1 = TemporaryFile()
@@ -213,7 +213,7 @@ class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, self.output_prefix + "_SNPs.vcf.gz"))
+        return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_SNPs.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -305,7 +305,7 @@ class SNPsNotebook(NotebookTask):
         logger.info(str(self.vars_dict))
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, 'QC', 'SNPs.ipynb'))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'QC', 'SNPs.ipynb'))
 
 
 @requires(HD5s)
@@ -320,7 +320,7 @@ class FilteredNotebook(NotebookTask):
         logger.info(str(self.vars_dict))
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, 'QC', 'Filtered.ipynb'))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'QC', 'Filtered.ipynb'))
 
 
 @requires(HD5s)
@@ -336,7 +336,7 @@ class RawNotebook(NotebookTask):
         logger.info(str(self.vars_dict))
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, 'QC', 'Raw.ipynb'))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'QC', 'Raw.ipynb'))
 
 
 @inherits(SNPsNotebook)
@@ -360,7 +360,7 @@ class SnpEff(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, self.output_prefix + "_SNPs_ann.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_SNPs_ann.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -388,7 +388,7 @@ class GetSyn(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, self.output_prefix + "_SNPs_syn.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_SNPs_syn.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -421,7 +421,7 @@ class GetINDELs(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, self.output_prefix + "_INDELs_only.vcf.gz"))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_INDELs_only.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -457,7 +457,7 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
         self.partition = "tgac-medium"
 
     def output(self):
-        return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, 'callsets', self.output_prefix, self.output_prefix + "_RefSNPs.vcf.gz"))
+        return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_RefSNPs.vcf.gz"))
 
     def work_script(self):
         return '''#!/bin/bash

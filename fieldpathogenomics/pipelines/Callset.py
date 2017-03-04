@@ -513,4 +513,4 @@ if __name__ == '__main__':
                                  '--lib-list', json.dumps(lib_list),
                                  '--star-genome', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/genome/',
                                  '--reference', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/PST130_contigs.fasta',
-                                 '--mask', '/tgac/workarea/users/buntingd/realignment/PST130/Combined/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])
+                                 '--mask', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])

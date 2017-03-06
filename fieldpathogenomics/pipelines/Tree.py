@@ -242,7 +242,7 @@ class RAxML_Bootstrap(SlurmExecutableTask):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
         self.mem = 1000
-        self.n_cpu = 10
+        self.n_cpu = 20
         self.partition = "tgac-medium"
 
     def output(self):

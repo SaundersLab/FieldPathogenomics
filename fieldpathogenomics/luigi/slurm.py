@@ -137,7 +137,7 @@ class SlurmTask(SlurmExecutableTask):
     def work_script(self):
         python = os.path.join((os.environ['VIRTUAL_ENV']), 'bin', 'activate')
         cwd = os.getcwd()
-        module_path = os.path.split(inspect.getsourcefile(self.__class__))[0]
+        module_path = os.path.split(os.path.abspath(inspect.getsourcefile(self.__class__)))[0]
         return '''#!/bin/bash
                   source {python}
                   set -euo pipefail

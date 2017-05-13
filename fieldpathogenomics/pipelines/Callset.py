@@ -285,9 +285,9 @@ class VCFtoHDF5(SlurmExecutableTask):
 class HD5s(luigi.WrapperTask):
 
     def requires(self):
-        return {'raw': self.clone(ScatterGather(ScatterVCF, GatherHD5s, 5)(requires(GenotypeGVCF)(VCFtoHDF5))),
-                'filtered': self.clone(ScatterGather(ScatterVCF, GatherHD5s, 5)(requires(VcfToolsFilter)(VCFtoHDF5))),
-                'snps': self.clone(ScatterGather(ScatterVCF, GatherHD5s, 5)(requires(GetSNPs)(VCFtoHDF5)))}
+        return {'raw': self.clone(ScatterGather(ScatterVCF, GatherHD5s, N_scatter)(requires(GenotypeGVCF)(VCFtoHDF5))),
+                'filtered': self.clone(ScatterGather(ScatterVCF, GatherHD5s, N_scatter)(requires(VcfToolsFilter)(VCFtoHDF5))),
+                'snps': self.clone(ScatterGather(ScatterVCF, GatherHD5s, N_scatter)(requires(GetSNPs)(VCFtoHDF5)))}
 
     def output(self):
         return self.input()

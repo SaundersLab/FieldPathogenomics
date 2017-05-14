@@ -268,7 +268,7 @@ class VCFtoHDF5(SlurmExecutableTask):
                 tabix -f -p vcf {input}
 
                 vcf2npy --vcf {input} --arity 'AD:6' --array-type calldata_2d --output-dir {cache_dir}
-                vcf2npy --vcf {input} --arity 'AD:6' --array-type variants --output-dir {cache_dir}
+                vcf2npy --vcf {input} --arity 'AD:6' --exclude-field ANN --array-type variants --output-dir {cache_dir}
 
                 vcfnpy2hdf5 --vcf {input} --input-dir {cache_dir} --output {output}.temp
 
@@ -277,76 +277,6 @@ class VCFtoHDF5(SlurmExecutableTask):
                            input=self.input().path,
                            cache_dir=cache_dir,
                            output=self.output().path)
-
-
-@inherits(GenotypeGVCF)
-@inherits(VcfToolsFilter)
-@inherits(GetSNPs)
-class HD5s(luigi.WrapperTask):
-
-    def requires(self):
-        return {'raw': self.clone(ScatterGather(ScatterVCF, GatherHD5s, N_scatter)(requires(GenotypeGVCF)(VCFtoHDF5))),
-                'filtered': self.clone(ScatterGather(ScatterVCF, GatherHD5s, N_scatter)(requires(VcfToolsFilter)(VCFtoHDF5))),
-                'snps': self.clone(ScatterGather(ScatterVCF, GatherHD5s, N_scatter)(requires(GetSNPs)(VCFtoHDF5)))}
-
-    def output(self):
-        return self.input()
-
-
-@requires(HD5s)
-class SNPsNotebook(NotebookTask):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.mem = 8000
-        self.n_cpu = 1
-        self.partition = "tgac-medium"
-        self.notebook = os.path.join(utils.notebooks, 'Callset', 'SNPs.ipynb')
-        self.vars_dict = {'SNPS_HD5': self.input()['snps'].path}
-        logger.info(str(self.vars_dict))
-
-    def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'QC', 'SNPs.ipynb'))
-
-
-@requires(HD5s)
-class FilteredNotebook(NotebookTask):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.mem = 8000
-        self.n_cpu = 1
-        self.partition = "tgac-medium"
-        self.notebook = os.path.join(utils.notebooks, 'Callset', 'Filtered.ipynb')
-        self.vars_dict = {'FILTERED_HD5': self.input()['filtered'].path}
-        logger.info(str(self.vars_dict))
-
-    def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'QC', 'Filtered.ipynb'))
-
-
-@requires(HD5s)
-class RawNotebook(NotebookTask):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.mem = 4000
-        self.n_cpu = 2
-        self.partition = "tgac-medium"
-        self.notebook = os.path.join(utils.notebooks, 'Callset', 'Raw.ipynb')
-        self.vars_dict = {'RAW_HD5': self.input()['raw'].path,
-                          'NCPU': self.n_cpu}
-        logger.info(str(self.vars_dict))
-
-    def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'QC', 'Raw.ipynb'))
-
-
-@inherits(SNPsNotebook)
-@inherits(FilteredNotebook)
-@inherits(RawNotebook)
-class QCNotebooks(luigi.WrapperTask):
-    def requires(self):
-        yield self.clone(SNPsNotebook)
-        yield self.clone(RawNotebook)
-        yield self.clone(FilteredNotebook)
 
 
 @requires(GetSNPs)
@@ -480,6 +410,77 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                              output=self.output().path,
                              reference=self.reference,
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
+
+
+@inherits(GenotypeGVCF)
+@inherits(VcfToolsFilter)
+@inherits(GetSNPs)
+class HD5s(luigi.WrapperTask):
+
+    def requires(self):
+        return {'raw': self.clone(ScatterGather(ScatterVCF, GatherHD5s, N_scatter)(requires(GenotypeGVCF)(VCFtoHDF5))),
+                'syn': self.clone(ScatterGather(ScatterVCF, GatherHD5s, N_scatter)(requires(GetSyn)(VCFtoHDF5))),
+                'filtered': self.clone(ScatterGather(ScatterVCF, GatherHD5s, N_scatter)(requires(VcfToolsFilter)(VCFtoHDF5))),
+                'snps': self.clone(ScatterGather(ScatterVCF, GatherHD5s, N_scatter)(requires(GetSNPs)(VCFtoHDF5)))}
+
+    def output(self):
+        return self.input()
+
+
+@requires(HD5s)
+class SNPsNotebook(NotebookTask):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+        self.notebook = os.path.join(utils.notebooks, 'Callset', 'SNPs.ipynb')
+        self.vars_dict = {'SNPS_HD5': self.input()['snps'].path}
+        logger.info(str(self.vars_dict))
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'QC', 'SNPs.ipynb'))
+
+
+@requires(HD5s)
+class FilteredNotebook(NotebookTask):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mem = 8000
+        self.n_cpu = 1
+        self.partition = "tgac-medium"
+        self.notebook = os.path.join(utils.notebooks, 'Callset', 'Filtered.ipynb')
+        self.vars_dict = {'FILTERED_HD5': self.input()['filtered'].path}
+        logger.info(str(self.vars_dict))
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'QC', 'Filtered.ipynb'))
+
+
+@requires(HD5s)
+class RawNotebook(NotebookTask):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mem = 4000
+        self.n_cpu = 2
+        self.partition = "tgac-medium"
+        self.notebook = os.path.join(utils.notebooks, 'Callset', 'Raw.ipynb')
+        self.vars_dict = {'RAW_HD5': self.input()['raw'].path,
+                          'NCPU': self.n_cpu}
+        logger.info(str(self.vars_dict))
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'QC', 'Raw.ipynb'))
+
+
+@inherits(SNPsNotebook)
+@inherits(FilteredNotebook)
+@inherits(RawNotebook)
+class QCNotebooks(luigi.WrapperTask):
+    def requires(self):
+        yield self.clone(SNPsNotebook)
+        yield self.clone(RawNotebook)
+        yield self.clone(FilteredNotebook)
 
 # ----------------------------------------------------------------------- #
 

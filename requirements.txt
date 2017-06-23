@@ -45,6 +45,7 @@ line-profiler==2.0
 locket==0.2.0
 lockfile==0.12.2
 -e git+https://github.com/dnlbunting/luigi.git@4424e9954b17763579caf9d27f566971b5a7499a#egg=luigi
+-e git+https://github.com/SaundersLab/bioluigi.git#egg=bioluigi
 MarkupSafe==1.0
 matplotlib==1.5.3
 memory-profiler==0.41

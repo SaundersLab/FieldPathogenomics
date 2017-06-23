@@ -3,13 +3,15 @@ import sys
 import json
 
 import fieldpathogenomics
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
 from fieldpathogenomics.pipelines.Callset import GetRefSNPs
-from fieldpathogenomics.utils import CheckTargetNonEmpty
 import fieldpathogenomics.utils as utils
 
+from bioluigi.slurm import SlurmExecutableTask, SlurmTask
+from bioluigi.utils import CheckTargetNonEmpty
+from bioluigi.decorators import requires, inherits
+
+
 import luigi
-from luigi.util import requires, inherits
 from luigi import LocalTarget
 
 FILE_HASH = utils.file_hash(__file__)

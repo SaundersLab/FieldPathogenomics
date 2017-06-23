@@ -5,17 +5,19 @@ import math
 import shutil
 
 import luigi
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
-from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
+from bioluigi.slurm import SlurmExecutableTask
+from bioluigi.utils import CheckTargetNonEmpty
+from bioluigi.decorators import requires, inherits
+from bioluigi.scattergather import ScatterGather
+from bio.luigi.notebook import NotebookTask
+
 import fieldpathogenomics
-from fieldpathogenomics.utils import CheckTargetNonEmpty, gatk, snpeff, snpsift
+from fieldpathogenomics.utils import gatk, snpeff, snpsift
 from fieldpathogenomics.SGUtils import ScatterBED, GatherVCF, ScatterVCF, GatherHD5s
-from fieldpathogenomics.luigi.scattergather import ScatterGather
 from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
-from fieldpathogenomics.luigi.notebook import NotebookTask
 import fieldpathogenomics.utils as utils
 import fieldpathogenomics.pipelines.Library as Library
 

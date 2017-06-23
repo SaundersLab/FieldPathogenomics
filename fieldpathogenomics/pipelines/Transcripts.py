@@ -3,14 +3,15 @@ import sys
 import json
 
 import luigi
-from luigi.util import requires, inherits
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
+from bioluigi.slurm import SlurmExecutableTask, SlurmTask
+from bioluigi.uv import UVExecutableTask
+from bioluigi.utils import CheckTargetNonEmpty
+from bioluigi.decorators import requires, inherits
+
 import fieldpathogenomics
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
-from fieldpathogenomics.luigi.uv import UVExecutableTask
-from fieldpathogenomics.utils import CheckTargetNonEmpty
 import fieldpathogenomics.utils as utils
 import fieldpathogenomics.pipelines.Library as Library
 

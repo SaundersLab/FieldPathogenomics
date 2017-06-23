@@ -6,14 +6,15 @@ import sqlalchemy
 
 import luigi
 from luigi.contrib import sqla
-from luigi.util import requires, inherits
 from luigi import LocalTarget
 
-import fieldpathogenomics
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
-from fieldpathogenomics.utils import CheckTargetNonEmpty, picard, gatk, trimmomatic
-from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
+from bioluigi.slurm import SlurmExecutableTask, SlurmTask
+from bioluigi.utils import CheckTargetNonEmpty
+from bioluigi.decorators import requires, inherits
 
+import fieldpathogenomics
+from fieldpathogenomics.utils import picard, gatk, trimmomatic
+from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
 import fieldpathogenomics.utils as utils
 
 FILE_HASH = utils.file_hash(__file__)

@@ -35,7 +35,7 @@ class StringTie(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 2000
         self.n_cpu = 4
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, 'stringtie.gtf'))
@@ -66,7 +66,7 @@ class StringTieMerge(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 2000
         self.n_cpu = 4
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def requires(self):
         return [self.clone(StringTie, library=lib) for lib in self.lib_list]
@@ -105,7 +105,7 @@ class Cufflinks(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, "cufflinks.gtf"))
@@ -135,7 +135,7 @@ class CuffMerge(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 2000
         self.n_cpu = 4
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def requires(self):
         return [self.clone(Cufflinks, library=lib) for lib in self.lib_list]
@@ -176,7 +176,7 @@ class AddTranscripts(SlurmTask):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'cufflinks.gtf'))
@@ -238,7 +238,7 @@ class MergeBam(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 16000
         self.n_cpu = 3
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def requires(self):
         return [self.clone(Library.MarkDuplicates, library=lib) for lib in self.lib_list]
@@ -304,7 +304,7 @@ class GMAP(SlurmExecutableTask, CheckTargetNonEmpty):
         super().__init__(*args, **kwargs)
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = 'tgac-medium'
+        self.partition = 'nbi-medium'
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'trinity.gff3'))
@@ -334,7 +334,7 @@ class PortcullisPrep(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 16000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.output_prefix, 'portcullis_prep'))
@@ -360,7 +360,7 @@ class PortcullisJunc(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 24000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.output_prefix, 'portcullis_junc'))
@@ -389,7 +389,7 @@ class PortcullisFilter(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def requires(self):
         return {'prep': self.clone(PortcullisPrep),
@@ -442,7 +442,7 @@ class MikadoConfigure(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'mikado', 'configuration.yaml'))
@@ -495,7 +495,7 @@ class MikadoPrepare(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return {'gtf': LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'mikado', 'mikado_prepared.gtf')),
@@ -524,7 +524,7 @@ class BLAST(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 750
         self.n_cpu = 12
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'mikado', 'blast.xml.gz'))
@@ -556,7 +556,7 @@ class TransDecoder(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 4
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'mikado', 'orfs.bed'))
@@ -589,7 +589,7 @@ class MikadoSerialise(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def requires(self):
         return {'conf': self.clone(MikadoConfigure),
@@ -627,7 +627,7 @@ class MikadoPick(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1500
         self.n_cpu = 8
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def requires(self):
         return {'conf': self.clone(MikadoConfigure),
@@ -663,7 +663,7 @@ class MikadoCompare(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1500
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'mikado', 'mikado.gff'))

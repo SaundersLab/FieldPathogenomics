@@ -85,7 +85,7 @@ class CombineGVCFs(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 16000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.output_prefix, "combined", self.output_prefix + "_" + str(self.idx) + ".g.vcf"))
@@ -137,7 +137,7 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-long"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_raw.vcf.gz"))
@@ -176,7 +176,7 @@ class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 2
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_filtered.vcf.gz"))
@@ -219,7 +219,7 @@ class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_SNPs.vcf.gz"))
@@ -256,7 +256,7 @@ class VCFtoHDF5(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 64000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(utils.get_ext(self.input().path)[0] + ".hd5")
@@ -299,7 +299,7 @@ class SnpEff(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_SNPs_ann.vcf.gz"))
@@ -328,7 +328,7 @@ class GetSyn(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_SNPs_syn.vcf.gz"))
@@ -361,7 +361,7 @@ class GetINDELs(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_INDELs_only.vcf.gz"))
@@ -397,7 +397,7 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_RefSNPs.vcf.gz"))
@@ -446,7 +446,7 @@ class SNPsNotebook(NotebookTask):
         super().__init__(*args, **kwargs)
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'SNPs.ipynb')
         self.vars_dict = {'SNPS_HD5': self.input()['snps'].path}
         logger.info(str(self.vars_dict))
@@ -461,7 +461,7 @@ class FilteredNotebook(NotebookTask):
         super().__init__(*args, **kwargs)
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'Filtered.ipynb')
         self.vars_dict = {'FILTERED_HD5': self.input()['filtered'].path}
         logger.info(str(self.vars_dict))
@@ -476,7 +476,7 @@ class RawNotebook(NotebookTask):
         super().__init__(*args, **kwargs)
         self.mem = 4000
         self.n_cpu = 2
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'Raw.ipynb')
         self.vars_dict = {'RAW_HD5': self.input()['raw'].path,
                           'NCPU': self.n_cpu}

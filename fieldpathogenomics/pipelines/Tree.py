@@ -29,7 +29,7 @@ class ConvertToBCF(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 2
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.output_prefix + ".bcf.gz"))
@@ -54,7 +54,7 @@ class GetSingleSample(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 2
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return[LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, 'single_sample', self.library + ".vcf.gz")),
@@ -97,7 +97,7 @@ class BCFtoolsConsensus(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, 'single_sample', self.library + "_" + self.consensus_type + '.fasta'))
@@ -133,7 +133,7 @@ class GFFread(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, 'single_sample', self.library + '_genes_' + self.consensus_type + '.fasta'))
@@ -174,7 +174,7 @@ class GetAlignment(SlurmTask):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return {'phy': LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + ".phy")),}
@@ -216,7 +216,7 @@ class RAxML(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 10
-        self.partition = "tgac-medium"
+        self.partition = "nbi-long,RG-Diane-Saunders"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'mle', "RAxML_result." + self.output_prefix))
@@ -245,7 +245,7 @@ class RAxML_Bootstrap(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 20
-        self.partition = "tgac-medium"
+        self.partition = "nbi-long,RG-Diane-Saunders"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'bootstraps', "RAxML_bootstrap." + self.output_prefix))
@@ -274,7 +274,7 @@ class RAxML_Combine(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 2
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def requires(self):
         return {'mle': self.clone(RAxML),

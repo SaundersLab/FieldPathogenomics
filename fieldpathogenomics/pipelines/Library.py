@@ -51,7 +51,7 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-short"
 
     def output(self):
         return [LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, "raw_R1.fastq.gz")),
@@ -80,7 +80,7 @@ class Trimmomatic(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 2000
         self.n_cpu = 4
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return [LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, "filtered_R1.fastq.gz")),
@@ -124,7 +124,7 @@ class FastxQC(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 2000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         working_dir = os.path.join(self.base_dir, VERSION, PIPELINE, self.library)
@@ -169,7 +169,7 @@ class FastxTrimmer(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         return [LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, "filtered_R1.fastq.gz")),
@@ -201,7 +201,7 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 3000
         self.n_cpu = 4
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium,RG-Diane-Saunders"
 
     def output(self):
         return {
@@ -244,7 +244,7 @@ class FastQC(CheckTargetNonEmpty, SlurmExecutableTask):
             # Set the SLURM request params for this task
             self.mem = 2000
             self.n_cpu = 1
-            self.partition = "tgac-medium"
+            self.partition = "nbi-medium"
 
         def output(self):
             return [LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.library, 'QC', 'R1', 'fastqc_data.txt')),
@@ -332,7 +332,7 @@ class CleanSam(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1500
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, 'Aligned.out_cleaned.bam'))
@@ -361,7 +361,7 @@ class AddReadGroups(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 3000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, 'rg_added_sorted.bam'))
@@ -391,7 +391,7 @@ class MarkDuplicates(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 6000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return CommittedTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.library, self.library + '.bam'))
@@ -422,7 +422,7 @@ class PortcullisFilterBam(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         if self.portcullis_junc == '':
@@ -473,7 +473,7 @@ class BaseQualityScoreRecalibration(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def output(self):
         if self.snp_db == '':
@@ -526,7 +526,7 @@ class SplitNCigarReads(CheckTargetNonEmpty, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 6000
         self.n_cpu = 1
-        self.partition = "tgac-short"
+        self.partition = "nbi-short"
 
     def output(self):
         return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, 'split.bam'))
@@ -560,7 +560,7 @@ class HaplotypeCaller(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 6000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-long,RG-Diane-Saunders"
         self.sbatch_args = '--constraint=intel'
 
     def output(self):
@@ -597,7 +597,7 @@ class PlotAlleleFreq(SlurmTask):
         # Set the SLURM request params for this task
         self.mem = 4000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-short"
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, self.library, 'QC', self.library + "_allele_freqs.pdf"))

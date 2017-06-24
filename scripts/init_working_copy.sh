@@ -11,6 +11,10 @@ case $i in
     scratch_dir="${i#*=}"
     shift # past argument=value
     ;;
+    --base-dir=*)
+    base_dir="${i#*=}"
+    shift # past argument=value
+    ;;
     --prod-dir=*)
     prod_dir="${i#*=}"
     shift # past argument=value
@@ -86,11 +90,16 @@ vars=$(printf "#!/bin/bash -e
 prod_dir=$prod_dir
 dev_dir=$dev_dir
 scratch_dir=$scratch_dir
+base_dir=$base_dir
 src_dir=$dev_dir/dev/src/fieldpathogenomics/")
 
     printf '%b\n' "$vars" | cat - release.sh > temp && mv temp release.sh
     printf '%b\n' "$vars" | cat - test.sh > temp && mv temp test.sh
     printf '%b\n' "$vars" | cat - pull.sh > temp && mv temp pull.sh
+
+    #-- Pipeline scripts --#
+    printf '%b\n' "$vars" | cat - Callset.sh > temp && mv temp Callset.sh
+
 
 }
 

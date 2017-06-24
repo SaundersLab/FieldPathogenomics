@@ -85,7 +85,6 @@ PyYAML==3.12
 pyzmq==16.0.2
 qgrid==0.3.2
 qtconsole==4.3.0
-readline==6.2.4.1
 recommonmark==0.4.0
 requests==2.13.0
 s3fs==0.0.9

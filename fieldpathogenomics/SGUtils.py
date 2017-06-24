@@ -3,8 +3,10 @@ import os
 import math
 
 import luigi
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
-from fieldpathogenomics.utils import CheckTargetNonEmpty, get_ext
+from bioluigi.slurm import SlurmExecutableTask, SlurmTask
+from bioluigi.utils import CheckTargetNonEmpty
+
+from fieldpathogenomics.utils import get_ext
 
 import logging
 logger = logging.getLogger('luigi-interface')

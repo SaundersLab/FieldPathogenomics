@@ -3,7 +3,7 @@ import subprocess
 import luigi
 import os
 
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask, SlurmTask
+from bioluigi.slurm import SlurmExecutableTask, SlurmTask
 
 test_dir = os.path.split(__file__)[0]
 

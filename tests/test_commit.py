@@ -2,7 +2,7 @@ import unittest
 import luigi
 import os
 
-from fieldpathogenomics.luigi.slurm import SlurmExecutableTask
+from bioluigi.slurm import SlurmExecutableTask
 from fieldpathogenomics.luigi.commit import CommittedTarget, CommittedTask
 
 test_dir = os.path.split(__file__)[0]

@@ -5,7 +5,7 @@ import luigi
 import luigi.mock
 import glob
 
-from fieldpathogenomics.luigi.scattergather import ScatterGather
+from bioluigi.scattergather import ScatterGather
 
 test_dir = os.path.split(__file__)[0]
 

@@ -2,7 +2,7 @@ import unittest
 import luigi
 import os
 
-from fieldpathogenomics.luigi.notebook import NotebookTask
+from bioluigi.notebook import NotebookTask
 
 test_dir = os.path.split(__file__)[0]
 

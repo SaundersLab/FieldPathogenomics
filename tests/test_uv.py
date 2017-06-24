@@ -3,7 +3,7 @@ import subprocess
 import luigi
 import os
 
-from fieldpathogenomics.luigi.uv import UVExecutableTask
+from bioluigi.uv import UVExecutableTask
 
 test_dir = os.path.split(__file__)[0]
 

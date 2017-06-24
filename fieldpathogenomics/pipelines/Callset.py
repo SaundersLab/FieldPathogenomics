@@ -12,7 +12,7 @@ from bioluigi.slurm import SlurmExecutableTask
 from bioluigi.utils import CheckTargetNonEmpty
 from bioluigi.decorators import requires, inherits
 from bioluigi.scattergather import ScatterGather
-from bio.luigi.notebook import NotebookTask
+from bioluigi.notebook import NotebookTask
 
 import fieldpathogenomics
 from fieldpathogenomics.utils import gatk, snpeff, snpsift

@@ -1,7 +1,3 @@
-prod_dir=/usr/users/ga004/buntingd/FP_prod   #/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline
-version_file=$prod_dir/production/src/fieldpathogenomics/fieldpathogenomics/version.py
-
-
 function commit {
 
     echo "__version__ = '${NEW}'" > $version_file

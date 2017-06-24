@@ -1,8 +1,9 @@
 #!/bin/bash -e
 
-scratch_dir=/tgac/scratch/buntingd/
-install_dir=/usr/users/ga004/buntingd/test
-env_name="dev"
+scratch_dir=/tgac/scratch/buntingd/   # <------------- Modify this
+dev_dir=/usr/users/ga004/buntingd/test # <------------- Modify this
+prod_dir=/usr/users/ga004/buntingd/FP_prod   #/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline
+version_file=$prod_dir/production/src/fieldpathogenomics/fieldpathogenomics/version.py
 
 
 function venv_create {
@@ -12,15 +13,15 @@ function venv_create {
     export TMPDIR=$scratch_dir'
 
     # Create the new virtualenv
-    mkdir -p $install_dir
-    cd $install_dir
+    mkdir -p $dev_dir
+    cd $dev_dir
     source python-3.5.1;
-    virtualenv -p `which python3` $env_name
+    virtualenv -p `which python3` dev
 
     # Add the source commands and environment variable defs to the activate script
     echo $activate_prefix > temp
-    cat $env_name/bin/activate >> temp
-    mv -f temp $env_name/bin/activate
+    cat dev/bin/activate >> temp
+    mv -f temp dev/bin/activate
 }
 
 
@@ -29,12 +30,12 @@ function install_fieldpathogenomics {
 
 ssh -t -t software << HERE
 # Use the internet connected node to install required packages
-source $install_dir/$env_name/bin/activate
+source $dev_dir/dev/bin/activate
 pip install --upgrade  --force-reinstall  -e git+https://github.com/SaundersLab/FieldPathogenomics.git@master#egg=fieldpathogenomics
 exit
 HERE
 
-    echo "Installed fieldpathogenomics to $install_dir/$env_name/src/fieldpathogenomics/fieldpathogenomics"
+    echo "Installed fieldpathogenomics to $dev_dir/dev/src/fieldpathogenomics/fieldpathogenomics"
 
 }
 
@@ -42,22 +43,35 @@ function install_requirements {
     # Use the requirements.txt to install python packages
 ssh -t -t software << HERE
 # Use the internet connected node to install required packages
-source $install_dir/$env_name/bin/activate
-pip install -r $install_dir/$env_name/src/fieldpathogenomics/requirements.txt
+source $dev_dir/dev/bin/activate
+pip install -r $dev_dir/dev/src/fieldpathogenomics/requirements.txt
 exit
 HERE
 
-    echo "Installed the requirements in  $install_dir/$env_name/src/fieldpathogenomics/requirements.txt"
+    echo "Installed the requirements in  $dev_dir/dev/src/fieldpathogenomics/requirements.txt"
 
 }
 
 function install_scripts {
     # Copy and localise the supporting scripts
-    cp -fr $install_dir/$env_name/src/fieldpathogenomics/scripts $install_dir/scripts
-    cd $install_dir/scripts
+    # This makes the following vars available to all scripts:
+    # $dev_dir
+    # $src_dir
+    # $prod_dir
+    # $scratch_dir
 
-    vars=$(printf "#!/bin/bash -e\ndev_dir=$install_dir\nsrc_dir=$install_dir/$env_name/src/fieldpathogenomics/\n")
-    echo "$vars" | cat - release.sh > temp && mv temp release.sh
+    cp -fr $dev_dir/dev/src/fieldpathogenomics/scripts $dev_dir/scripts
+    cd $dev_dir/scripts
+
+vars=$(printf "#!/bin/bash -e
+prod_dir=$prod_dir
+dev_dir=$dev_dir
+scratch_dir=$scratch_dir
+src_dir=$dev_dir/dev/src/fieldpathogenomics/")
+
+    printf '%b\n' "$vars" | cat - release.sh > temp && mv temp release.sh
+    printf '%b\n' "$vars" | cat - test.sh > temp && mv temp test.sh
+    printf '%b\n' "$vars" | cat - pull.sh > temp && mv temp pull.sh
 
 }
 

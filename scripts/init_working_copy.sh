@@ -1,16 +1,35 @@
 #!/bin/bash -e
 
-scratch_dir=/tgac/scratch/buntingd/   # <------------- Modify this
-dev_dir=/usr/users/ga004/buntingd/test # <------------- Modify this
-prod_dir=/usr/users/ga004/buntingd/FP_prod   #/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline
-version_file=$prod_dir/production/src/fieldpathogenomics/fieldpathogenomics/version.py
+for i in "$@"
+do
+case $i in
+    --dev-dir=*)
+    dev_dir="${i#*=}"
+    shift # past argument=value
+    ;;
+    --scratch-dir=*)
+    scratch_dir="${i#*=}"
+    shift # past argument=value
+    ;;
+    --prod-dir=*)
+    prod_dir="${i#*=}"
+    shift # past argument=value
+    ;;
+    *)
+            # unknown option
+    ;;
+esac
+done
 
+version_file=$prod_dir/production/src/fieldpathogenomics/fieldpathogenomics/version.py
 
 function venv_create {
 
-    activate_prefix='source python-3.5.1;
+    activate_prefix="source python-3.5.1;
     source git-1.8.1.2;
-    export TMPDIR=$scratch_dir'
+    export TMPDIR=$scratch_dir;
+    export LUIGI_CONFIG_PATH=$prod_dir/luigi.cfg;
+"
 
     # Create the new virtualenv
     mkdir -p $dev_dir
@@ -75,10 +94,16 @@ src_dir=$dev_dir/dev/src/fieldpathogenomics/")
 
 }
 
+function make_sym_links {
+    ln -Ts  $dev_dir/dev/src/fieldpathogenomics/fieldpathogenomics $dev_dir/fieldpathogenomics
+}
+
 venv_create;
 
 install_fieldpathogenomics;
 
 install_requirements;
 
-install_scripts
+install_scripts;
+
+make_sym_links;

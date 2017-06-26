@@ -301,7 +301,6 @@ class RAxML_Combine(SlurmExecutableTask):
 
 
 if __name__ == '__main__':
-    os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
     logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
                                            pipeline_name=os.path.basename(__file__))
 

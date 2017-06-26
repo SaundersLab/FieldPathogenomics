@@ -43,7 +43,7 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
 
     library = luigi.Parameter()
     base_dir = luigi.Parameter(significant=False)
-    scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
+    scratch_dir = luigi.Parameter(significant=False)
     read_dir = luigi.Parameter(default="/tgac/data/reads/*DianeSaunders*", significant=False)
 
     def __init__(self, *args, **kwargs):
@@ -687,7 +687,6 @@ class LibraryBatchWrapper(luigi.WrapperTask):
 
 
 if __name__ == '__main__':
-    os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
     logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
                                            pipeline_name=PIPELINE)
 

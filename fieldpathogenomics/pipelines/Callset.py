@@ -56,7 +56,7 @@ class gVCFs(luigi.Task, CheckTargetNonEmpty):
       for each library in lib_list'''
 
     base_dir = luigi.Parameter(significant=False)
-    scratch_dir = luigi.Parameter(default="/tgac/scratch/buntingd/", significant=False)
+    scratch_dir = luigi.Parameter(significant=False)
 
     output_prefix = luigi.Parameter()
     reference = luigi.Parameter()
@@ -514,7 +514,6 @@ class CallsetWrapper(luigi.WrapperTask):
 
 
 if __name__ == '__main__':
-    os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
     logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
                                            pipeline_name=os.path.basename(__file__))
 

@@ -27,8 +27,7 @@ class StringTie(SlurmExecutableTask, CheckTargetNonEmpty):
 
     library = luigi.Parameter()
     base_dir = luigi.Parameter(significant=False)
-    scratch_dir = luigi.Parameter(
-        default="/tgac/scratch/buntingd/", significant=False)
+    scratch_dir = luigi.Parameter(significant=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -689,7 +688,6 @@ class MikadoCompare(CheckTargetNonEmpty, SlurmExecutableTask):
 
 
 if __name__ == '__main__':
-    os.environ['TMPDIR'] = "/tgac/scratch/buntingd"
     logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
                                            pipeline_name=os.path.basename(__file__))
 

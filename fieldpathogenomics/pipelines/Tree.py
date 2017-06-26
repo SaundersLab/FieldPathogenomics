@@ -310,8 +310,8 @@ if __name__ == '__main__':
     name = os.path.split(sys.argv[1])[1].split('.', 1)[0]
 
     luigi.run(['RAxML_Combine', '--output-prefix', name,
-                        '--lib-list', json.dumps(lib_list),
-                        '--star-genome', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/genome/',
-                        '--gff', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/PST_genes_final.gff3',
-                        '--reference', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/PST130_contigs.fasta',
-                        '--mask', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/PST130_RNASeq_collapsed_exons.bed'] + sys.argv[3:])
+                                '--lib-list', json.dumps(lib_list),
+                                '--star-genome', os.path.join(utils.reference_dir, 'genome'),
+                                '--gff', os.path.join(utils.reference_dir, 'PST_genes_final.gff3'),
+                                '--reference', os.path.join(utils.reference_dir, 'PST130_contigs.fasta'),
+                                '--mask', os.path.join(utils.reference_dir, 'PST130_RNASeq_collapsed_exons.bed')] + sys.argv[3:])

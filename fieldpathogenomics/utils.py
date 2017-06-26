@@ -24,8 +24,10 @@ def get_ext(path):
 #                               Python paths                                   #
 ###############################################################################
 
-python = "source /usr/users/ga004/buntingd/FP_dev/dev/bin/activate"
+
+python = "source " + os.environ['VIRTUAL_ENV'] + "/bin/activate"
 notebooks = os.path.join(os.path.split(__file__)[0], 'notebooks')
+reference_dir = '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference'
 
 ###############################################################################
 #                               Java paths                                    #

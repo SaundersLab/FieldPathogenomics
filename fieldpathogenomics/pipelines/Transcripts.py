@@ -697,6 +697,6 @@ if __name__ == '__main__':
 
     luigi.run(['MikadoPick', '--lib-list', json.dumps(lib_list),
                              '--output-prefix', name,
-                             '--star-genome', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/genome/',
-                             '--reference', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/data/PST130_contigs.fasta',
-                             '--blast-db', '/nbi/Research-Groups/JIC/Diane-Saunders/FP_pipeline/reference/uniprot/pst_uniprot.fasta'] + sys.argv[2:])
+                             '--star-genome', os.path.join(utils.reference_dir, 'genome'),
+                             '--reference', os.path.join(utils.reference_dir, 'PST130_contigs.fasta'),
+                             '--blast-db', os.path.join(utils.reference_dir, '/uniprot/pst_uniprot.fasta')] + sys.argv[2:])

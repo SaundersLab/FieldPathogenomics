@@ -313,8 +313,8 @@ class AlignmentStats(sqla.CopyToTable):
         star_log = utils.parseStarLog(
             self.input()['star_log'].path, self.library)
 
-        self._rows = [[star_log[AlignmentStats.star_keys[x[0][0]]] for x in AlignmentStats.columns[
-            :len(star_log)]] + [genome, git_commit, pipeline_hash]]
+        self._rows = ([[star_log[AlignmentStats.star_keys[x[0][0]]] for x in AlignmentStats.columns[:len(star_log)]] +
+                      [genome, git_commit, pipeline_hash]])
 
     def rows(self):
         return self._rows
@@ -629,12 +629,14 @@ class PlotAlleleFreq(SlurmTask):
 @inherits(Trimmomatic)
 @inherits(FastxQC)
 @inherits(FastQC)
+@inherits(AlignmentStats)
 class CombinedQC(luigi.WrapperTask):
     '''Wrapper task that runs all the QC type tasks library'''
 
     def requires(self):
         yield self.clone(FastQC)
         yield self.clone(FastxQC)
+        yield self.clone(AlignmentStats)
 
 
 @inherits(MarkDuplicates)

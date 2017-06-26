@@ -99,6 +99,8 @@ src_dir=$dev_dir/dev/src/fieldpathogenomics/")
 
     #-- Pipeline scripts --#
     printf '%b\n' "$vars" | cat - Callset.sh > temp && mv temp Callset.sh
+    printf '%b\n' "$vars" | cat - Transcripts.sh > temp && mv temp Transcripts.sh
+    printf '%b\n' "$vars" | cat - Tree.sh > temp && mv temp Tree.sh
 
 
 }

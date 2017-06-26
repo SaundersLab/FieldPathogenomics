@@ -314,4 +314,4 @@ if __name__ == '__main__':
                                 '--star-genome', os.path.join(utils.reference_dir, 'genome'),
                                 '--gff', os.path.join(utils.reference_dir, 'PST_genes_final.gff3'),
                                 '--reference', os.path.join(utils.reference_dir, 'PST130_contigs.fasta'),
-                                '--mask', os.path.join(utils.reference_dir, 'PST130_RNASeq_collapsed_exons.bed')] + sys.argv[3:])
+                                '--mask', os.path.join(utils.reference_dir, 'PST130_RNASeq_collapsed_exons.bed')] + sys.argv[2:])

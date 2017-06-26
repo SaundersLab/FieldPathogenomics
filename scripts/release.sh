@@ -1,4 +1,4 @@
-version_file=$prod_dir/production/src/fieldpathogenomics/fieldpathogenomics/version.py
+version_file=$dev_dir/dev/src/fieldpathogenomics/fieldpathogenomics/version.py
 function commit {
 
     echo "__version__ = '${NEW}'" > $version_file
@@ -49,6 +49,7 @@ elif [[ $* == *--minor* ]]; then
 
 elif [[ $* == *--nobump* ]]; then
     echo "Re-releasing $OLD"
+    NEW=$OLD
 else
     echo "Please specify a release type"
     exit 1

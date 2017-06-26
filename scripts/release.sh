@@ -61,4 +61,18 @@ ssh -t -t software <<- HERE
     exit
 HERE
 
-echo "Successfully created a new production python environment "
+function install_requirements {
+    # Use the requirements.txt to install python packages
+ssh -t -t software << HERE
+# Use the internet connected node to install required packages
+source $prod_dir/production/bin/activate
+pip install -r $prod_dir/production/src/fieldpathogenomics/requirements.txt
+exit
+HERE
+
+    echo "Installed the requirements in  $dev_dir/dev/src/fieldpathogenomics/requirements.txt"
+
+}
+install_requirements;
+
+echo "Successfully released to production environment "

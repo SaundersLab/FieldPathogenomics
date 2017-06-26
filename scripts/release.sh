@@ -1,3 +1,4 @@
+version_file=$prod_dir/production/src/fieldpathogenomics/fieldpathogenomics/version.py
 function commit {
 
     echo "__version__ = '${NEW}'" > $version_file

@@ -389,7 +389,7 @@ class MarkDuplicates(CheckTargetNonEmpty, CommittedTask, SlurmExecutableTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 6000
+        self.mem = 8000
         self.n_cpu = 1
         self.partition = "nbi-short"
 

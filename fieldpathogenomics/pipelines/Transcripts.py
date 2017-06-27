@@ -281,7 +281,7 @@ class Trinity(SlurmExecutableTask, CheckTargetNonEmpty):
         cd {scratch}
 
         Trinity --genome_guided_bam {input} \
-                --max_memory {mem} \
+                --max_memory {mem}G \
                 --genome_guided_max_intron 10000 \
                 --output {scratch} \
                 --CPU {n_cpu}

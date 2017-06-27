@@ -7,7 +7,6 @@ from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
 from bioluigi.slurm import SlurmExecutableTask, SlurmTask
-from bioluigi.uv import UVExecutableTask
 from bioluigi.utils import CheckTargetNonEmpty
 from bioluigi.decorators import requires, inherits
 
@@ -261,36 +260,38 @@ class MergeBam(SlurmExecutableTask, CheckTargetNonEmpty):
 
 
 @requires(MergeBam)
-class Trinity(UVExecutableTask, CheckTargetNonEmpty):
+class Trinity(SlurmExecutableTask, CheckTargetNonEmpty):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 100000
-        self.n_cpu = 6
-        self.host = 'uv2k2'
+        self.mem = 2000
+        self.n_cpu = 10
+        self.partition = 'RG-Diane-Saunders,nbi-long'
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'Trinity-GG.fasta'))
 
     def work_script(self):
         return '''#!/bin/bash
-        export PATH='/tgac/software/testing/bin/:/tgac/software/production/bin/:'$PATH
-
         source trinityrnaseq-2.3.2;
+        mkdir -p {scratch}
         set -euo pipefail
 
-        mkdir -p /tgac/scratch/buntingd/trinity
-        cd /tgac/scratch/buntingd/trinity
+        cd {scratch}
 
-        Trinity --genome_guided_bam {input} --max_memory 100G \
+        Trinity --genome_guided_bam {input} \
+                --max_memory {mem} \
                 --genome_guided_max_intron 10000 \
-                --output /tgac/scratch/buntingd/trinity \
+                --output {scratch} \
                 --CPU {n_cpu}
-        mv /tgac/scratch/buntingd/trinity/Trinity-GG.fasta {output}
+
+        mv {scratch}/Trinity-GG.fasta {output}
         '''.format(input=self.input().path,
                    output=self.output().path,
-                   n_cpu=self.n_cpu)
+                   n_cpu=self.n_cpu,
+                   mem=int(0.95 * self.mem * self.n_cpu / 1000),
+                   scratch=os.path.join(self.scratch_dir, VERSION, PIPELINE, self.output_prefix))
 
 
 @requires(Trinity)

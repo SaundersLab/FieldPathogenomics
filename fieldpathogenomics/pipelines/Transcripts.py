@@ -270,7 +270,7 @@ class Trinity(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = 'RG-Diane-Saunders,nbi-long'
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'Trinity-GG.fasta'))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'trinity', 'Trinity-GG.fasta'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -291,7 +291,7 @@ class Trinity(SlurmExecutableTask, CheckTargetNonEmpty):
                    output=self.output().path,
                    n_cpu=self.n_cpu,
                    mem=int(0.95 * self.mem * self.n_cpu / 1000),
-                   scratch=os.path.join(self.scratch_dir, VERSION, PIPELINE, self.output_prefix))
+                   scratch=os.path.join(self.scratch_dir, VERSION, PIPELINE, self.output_prefix, 'trinity'))
 
 
 @requires(Trinity)

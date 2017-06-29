@@ -520,11 +520,11 @@ class CleanUpCallset(luigi.Task):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         base = os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix)
-        self.to_rm_glob = ([base + '_filtered_' + str(i) + '*' for i in range(self.N_scatter)] +
-                           [base + '_INDELs_only_' + str(i) + '*' for i in range(self.N_scatter)] +
-                           [base + '_raw_' + str(i) + '*' for i in range(self.N_scatter)] +
-                           [base + '_SNPs_' + str(i) + '*' for i in range(self.N_scatter)] +
-                           [base + '_RefSNPs_' + str(i) + '*' for i in range(self.N_scatter)] +
+        self.to_rm_glob = ([base + '_filtered_' + str(i) + '*' for i in range(N_scatter)] +
+                           [base + '_INDELs_only_' + str(i) + '*' for i in range(N_scatter)] +
+                           [base + '_raw_' + str(i) + '*' for i in range(N_scatter)] +
+                           [base + '_SNPs_' + str(i) + '*' for i in range(N_scatter)] +
+                           [base + '_RefSNPs_' + str(i) + '*' for i in range(N_scatter)] +
                            [base + "*temp*"])
         self.unglob = []
         for x in self.to_rm_glob:

@@ -287,8 +287,7 @@ class AlignmentStats(sqla.CopyToTable):
         (["mismatch_pc", sqlalchemy.String(10)], {}),
         (["datetime", sqlalchemy.String(25)], {}),
         (["genome", sqlalchemy.String(25)], {}),
-        (["git_commit", sqlalchemy.String(40)], {}),
-        (["pipeline_hash", sqlalchemy.String(40)], {}),
+        (["path", sqlalchemy.String(256)], {}),
     ]
 
     star_keys = {
@@ -307,14 +306,12 @@ class AlignmentStats(sqla.CopyToTable):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        git_commit = utils.current_commit_hash(os.path.split(__file__)[0])
-        pipeline_hash = utils.hash_pipeline(self)
-        genome = os.path.split(os.path.dirname(self.star_genome))[1]
-        star_log = utils.parseStarLog(
-            self.input()['star_log'].path, self.library)
+        genome = os.path.dirname(self.star_genome)
+        star_log = utils.parseStarLog(self.input()['star_log'].path, self.library)
+        path = self.input()['star_log'].path
 
         self._rows = ([[star_log[AlignmentStats.star_keys[x[0][0]]] for x in AlignmentStats.columns[:len(star_log)]] +
-                      [genome, git_commit, pipeline_hash]])
+                      [genome, path]])
 
     def rows(self):
         return self._rows

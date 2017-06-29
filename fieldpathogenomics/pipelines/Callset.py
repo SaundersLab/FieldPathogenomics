@@ -3,6 +3,7 @@ import sys
 import json
 import math
 import shutil
+from glob import glob
 
 import luigi
 from luigi import LocalTarget
@@ -513,6 +514,40 @@ class CallsetWrapper(luigi.WrapperTask):
         yield self.clone(QCNotebooks)
 
 
+@requires(CallsetWrapper)
+class CleanUpCallset(luigi.Task):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        base = os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix)
+        self.to_rm_glob = ([base + '_filtered_' + str(i) + '*' for i in range(self.N_scatter)] +
+                           [base + '_INDELs_only_' + str(i) + '*' for i in range(self.N_scatter)] +
+                           [base + '_raw_' + str(i) + '*' for i in range(self.N_scatter)] +
+                           [base + '_SNPs_' + str(i) + '*' for i in range(self.N_scatter)] +
+                           [base + '_RefSNPs_' + str(i) + '*' for i in range(self.N_scatter)] +
+                           [base + "*temp*"])
+        self.unglob = []
+        for x in self.to_rm_glob:
+            self.unglob += glob(x)
+
+    def run(self):
+        for x in self.unglob:
+            if os.path.exists(x) and os.path.isdir(x):
+                shutil.rmtree(x, ignore_errors=True)
+            else:
+                try:
+                    os.remove(x)
+                except:
+                    pass
+
+    def complete(self):
+        exists = any([os.path.exists(x) for x in self.unglob])
+        return self.clone_parent().complete() and not exists
+
+    def output(self):
+        return self.input()
+
+
 if __name__ == '__main__':
     logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
                                            pipeline_name=os.path.basename(__file__))
@@ -522,7 +557,7 @@ if __name__ == '__main__':
 
     name = os.path.split(sys.argv[1])[1].split('.', 1)[0]
 
-    luigi.run(['CallsetWrapper', '--output-prefix', name,
+    luigi.run(['CleanUpCallset', '--output-prefix', name,
                                  '--lib-list', json.dumps(lib_list),
                                  '--star-genome', os.path.join(utils.reference_dir, 'genome'),
                                  '--reference', os.path.join(utils.reference_dir, 'PST130_contigs.fasta'),

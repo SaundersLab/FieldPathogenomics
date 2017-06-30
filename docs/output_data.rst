@@ -6,7 +6,7 @@ All paths are given relative to the base_dir parameter, the next level gives the
 
 In luigi tasks this is achieved by having all LocalTargets look like:
 
-    ..code-block:: python
+    .. code-block:: python
 
         LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, folder, file))
         LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, folder, file))
@@ -14,7 +14,8 @@ In luigi tasks this is achieved by having all LocalTargets look like:
 
 The VERSION and PIPELINE variables are defined at the top of the file:
 
-    ..code-block:: python
+    .. code-block:: python
+
         FILE_HASH = utils.file_hash(__file__)
         VERSION = fieldpathogenomics.__version__.rsplit('.', 1)[0]
         PIPELINE = os.path.basename(__file__).split('.')[0]

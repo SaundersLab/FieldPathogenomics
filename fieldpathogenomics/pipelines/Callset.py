@@ -125,8 +125,7 @@ class CombineGVCFsWrapper(luigi.Task):
 
 
 @ScatterGather(ScatterBED, GatherVCF, N_scatter)
-@inherits(GenomeContigs)
-@inherits(CombineGVCFsWrapper)
+@inherits(CombineGVCFsWrapper, GenomeContigs)
 class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
     '''Combine the per sample g.vcfs into a complete callset'''
 
@@ -426,9 +425,7 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 
 
-@inherits(GenotypeGVCF)
-@inherits(VcfToolsFilter)
-@inherits(GetSNPs)
+@inherits(GetSNPs, GenotypeGVCF, VcfToolsFilter)
 class HD5s(luigi.WrapperTask):
     '''Wrapper providing access to HD5 encoded variant matrices'''
     def requires(self):
@@ -487,31 +484,16 @@ class RawNotebook(NotebookTask):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'QC', 'Raw.ipynb'))
 
 
-@inherits(SNPsNotebook)
-@inherits(FilteredNotebook)
-@inherits(RawNotebook)
+@requires(RawNotebook, SNPsNotebook, FilteredNotebook)
 class QCNotebooks(luigi.WrapperTask):
-    def requires(self):
-        yield self.clone(SNPsNotebook)
-        yield self.clone(RawNotebook)
-        yield self.clone(FilteredNotebook)
+    pass
 
 # ----------------------------------------------------------------------- #
 
 
-@inherits(GetSyn)
-@inherits(GetRefSNPs)
-@inherits(GetINDELs)
-@inherits(HD5s)
-@inherits(QCNotebooks)
+@requires(QCNotebooks, GetSyn, GetRefSNPs, GetINDELs, HD5s)
 class CallsetWrapper(luigi.WrapperTask):
-
-    def requires(self):
-        yield self.clone(GetINDELs)
-        yield self.clone(GetSyn)
-        yield self.clone(GetRefSNPs)
-        yield self.clone(HD5s)
-        yield self.clone(QCNotebooks)
+    pass
 
 
 @requires(CallsetWrapper)

@@ -414,17 +414,8 @@ class PortcullisFilter(SlurmExecutableTask):
 # ----------------------------------------------------------------------#
 
 
-@inherits(AddTranscripts)
-@inherits(StringTieMerge)
-@inherits(PortcullisFilter)
-@inherits(GMAP)
+@requires(trinity=GMAP, cufflinks=AddTranscripts, stringtie=StringTieMerge, portcullis=PortcullisFilter)
 class TranscriptsWrapper(luigi.Task):
-
-    def requires(self):
-        return {'stringtie': self.clone(StringTieMerge),
-                'cufflinks': self.clone(AddTranscripts),
-                'trinity': self.clone(GMAP),
-                'portcullis': self.clone(PortcullisFilter)}
 
     def output(self):
         return self.input()
@@ -579,9 +570,7 @@ class TransDecoder(SlurmExecutableTask, CheckTargetNonEmpty):
                           n_cpu=self.n_cpu)
 
 
-@inherits(MikadoConfigure)
-@inherits(BLAST)
-@inherits(TransDecoder)
+@requires(orfs=TransDecoder, blast=BLAST, conf=MikadoConfigure)
 class MikadoSerialise(CheckTargetNonEmpty, SlurmExecutableTask):
 
     def __init__(self, *args, **kwargs):
@@ -590,11 +579,6 @@ class MikadoSerialise(CheckTargetNonEmpty, SlurmExecutableTask):
         self.mem = 8000
         self.n_cpu = 1
         self.partition = "nbi-short"
-
-    def requires(self):
-        return {'conf': self.clone(MikadoConfigure),
-                'blast': self.clone(BLAST),
-                'orfs': self.clone(TransDecoder)}
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'mikado', 'mikado.db'))
@@ -617,9 +601,7 @@ class MikadoSerialise(CheckTargetNonEmpty, SlurmExecutableTask):
                            conf=self.input()['conf'].path)
 
 
-@inherits(MikadoConfigure)
-@inherits(MikadoPrepare)
-@inherits(MikadoSerialise)
+@inherits(db=MikadoSerialise, prep=MikadoPrepare, conf=MikadoConfigure)
 class MikadoPick(CheckTargetNonEmpty, SlurmExecutableTask):
 
     def __init__(self, *args, **kwargs):

@@ -525,6 +525,7 @@ class CleanUpCallset(luigi.Task):
                            [base + '_raw_' + str(i) + '*' for i in range(N_scatter)] +
                            [base + '_SNPs_' + str(i) + '*' for i in range(N_scatter)] +
                            [base + '_RefSNPs_' + str(i) + '*' for i in range(N_scatter)] +
+                           [base + '_SNPs_syn_' + str(i) + '*' for i in range(N_scatter)] +
                            [base + "*temp*"])
         self.unglob = []
         for x in self.to_rm_glob:

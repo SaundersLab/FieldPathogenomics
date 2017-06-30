@@ -306,18 +306,18 @@ class AlignmentStats(sqla.CopyToTable):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        genome = os.path.dirname(self.star_genome)
+
+    def rows(self):
+        genome = os.path.split(self.star_genome)[1]
         star_log = utils.parseStarLog(self.input()['star_log'].path, self.library)
         path = self.input()['star_log'].path
 
         self._rows = ([[star_log[AlignmentStats.star_keys[x[0][0]]] for x in AlignmentStats.columns[:len(star_log)]] +
                       [genome, path]])
-
-    def rows(self):
         return self._rows
 
     def update_id(self):
-        return hash(str(self._rows))
+        return hash(self.input()['star_log'].path)
 
 
 @requires(Star)

@@ -111,7 +111,7 @@ def parseStarLog(logfile, lib):
                 if len(split) == 2 and split[0] in keep:
                     s[split[0]] = float(split[1][:-1]) if '%' in split[1] else split[1]
     except FileNotFoundError:
-        pd.Series(dict(zip(keep, [float('nan')] * len(keep))))
+        s = pd.Series(dict(zip(keep, [float('nan')] * len(keep))))
 
     s['Library'] = lib
     return s

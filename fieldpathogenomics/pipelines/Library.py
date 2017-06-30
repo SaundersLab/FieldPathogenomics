@@ -623,32 +623,18 @@ class PlotAlleleFreq(SlurmTask):
         plt.gcf().savefig(self.output().path)
 
 
-@inherits(Trimmomatic)
-@inherits(FastxQC)
-@inherits(FastQC)
-@inherits(AlignmentStats)
+@requires(Trimmomatic, FastxQC, FastQC, AlignmentStats)
 class CombinedQC(luigi.WrapperTask):
     '''Wrapper task that runs all the QC type tasks library'''
-
-    def requires(self):
-        yield self.clone(FastQC)
-        yield self.clone(FastxQC)
-        yield self.clone(AlignmentStats)
+    pass
 
 
-@inherits(MarkDuplicates)
-@inherits(CombinedQC)
-@inherits(HaplotypeCaller)
+@requires(bam=MarkDuplicates, gvcf=HaplotypeCaller, qc=CombinedQC, stats=AlignmentStats)
 class PerLibPipeline(luigi.WrapperTask):
     '''Wrapper task that runs all tasks on a single library'''
 
-    def requires(self):
-        return {'qc': self.clone(CombinedQC),
-                'gvcf': self.clone(HaplotypeCaller),
-                'bam': self.clone(MarkDuplicates)}
-
     def output(self):
-        return self.input()
+        return {k: v for k, v in self.input().items() if k != 'stats'}
 
 
 @requires(PerLibPipeline)

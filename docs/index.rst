@@ -11,9 +11,11 @@ Contents:
 .. toctree::
    :maxdepth: 2
    :glob:
-   
+
    intro
+   getting_started
    protocols
+   output_data
    pipelines
    databases
    api

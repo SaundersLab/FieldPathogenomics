@@ -1,14 +1,14 @@
 API Documentation
 ==================
 
-.. automodule:: src.pipelines.Library
+.. automodule:: fieldpathogenomics.pipelines.Library
    :members:
 
-.. automodule:: src.pipelines.Callset
+.. automodule:: fieldpathogenomics.pipelines.Callset
    :members:
-   
-.. automodule:: src.pipelines.Tree
+
+.. automodule:: fieldpathogenomics.pipelines.Tree
      :members:
-     
-.. automodule:: src.pipelines.Transcript
+
+.. automodule:: fieldpathogenomics.pipelines.Transcripts
    :members:

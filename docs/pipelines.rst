@@ -14,46 +14,46 @@ The key steps are:
     * Read QC with FastQC
     * Alignment to reference with STAR
     * Variant calling with HaplotypeCaller
-    * Plotting allele frequency 
-    
-    
+    * Plotting allele frequency
+
+
 Inputs
 ^^^^^^^
 **Reads** .fastq.gz
 
-    The first task in the pipeline :class:`FetchFastqGZ` searches :param:`read-dir` for files matching the pattern `*library*_R1.fastq.gz` and `*library*_R2.fastq.gz`. 
+    The first task in the pipeline :class:`FetchFastqGZ` searches `read-dir` for files matching the pattern `*library*_R1.fastq.gz` and `*library*_R2.fastq.gz`.
     If multiple matches are found they are concatenated together in filename sorted order.
     Symbolic links are ignored
-    
+
 Outputs
 ^^^^^^^
 **dedupped.bam**
 
     The aligned, cleaned, annotated de-duplicated BAM file and index.
-    
+
 **Log.final.out**
 
-    The STAR alignment log 
+    The STAR alignment log
 
 **AlignmentStats**
 
     A row is inserted into the SQL table AlignmentStats containing the alignment statistics.
-    
+
 **LIBxxxxx.g.vcf**
 
     gVCF file and index output by HaplotypeCaller.
-    
+
 **QC/**
 
     Directory containing nucleotide distributions, quality scores and allele frequency distributions.
-    
-    
+
+
 Flags
 ^^^^^
 
 .. attribute:: --base-dir
 
-    Base of the output directory structure:: 
+    Base of the output directory structure::
         \|--BASE_DIR
             \|--libraries
                 \|--LIBxxxxxx
@@ -62,48 +62,29 @@ Flags
 
     Scratch directory
 
-.. attribute:: --read-dir 
+.. attribute:: --read-dir
 
-    File glob to pass to find to search for reads in. 
+    File glob to pass to find to search for reads in.
 
 .. attribute:: --star-genome
 
     STAR genome index
 
-.. attribute:: --snp-db 
+.. attribute:: --snp-db
 
     VCF of high quality a priori known SNPs to use for base quality score recalibration (BQSR).
     If none BQSR is not run
 
-.. attribute:: --reference 
+.. attribute:: --reference
 
     Reference genome FASTA (must have index in same folder)
 
-.. attribute:: --lib-list 
+.. attribute:: --lib-list
 
     JSON formatted list of librariries. The :py:class:`PerLibPipeline` is run once for each library in lib-list.
 
 
-Typically the Library pipeline will be run in using a SLURM wrapper script similar to this
-
-.. code-block:: bash
-
-   #!/bin/sh
-   #SBATCH --mem 20000 
-   #SBATCH -n 1
-   #SBATCH -N 1
-    
-    cd /tgac/workarea/collaborators/saunderslab/FP_pipeline
-    source production/bin/activate
-    export LUIGI_CONFIG_PATH=/tgac/workarea/collaborators/saunderslab/FP_pipeline/luigi.cfg
-
-    srun python -m src.pipelines.Library all_libs.txt \
-    --base-dir /tgac/workarea/collaborators/saunderslab/FP_pipeline/data/ \
-    --scratch-dir /tgac/scratch/buntingd/ \
-    --read-dir /tgac/data/read/*DianeSaunders* \
-    --workers 250 
-
-    
+Typically the Library pipeline will be run indirect as part of the Callset pipeline, though could be run directly to just do QC/alignments.
 
 When running the :py:module:`Library` as  script like this it takes as its first argument a text file containing libraries one per line which is used to construct lib-list
 
@@ -117,37 +98,38 @@ Key steps:
      * Run GenotypeGVCF to call variants.
      * Filter with vcftools
      * Separate out SNP, INDELs and non-variant sites.
-     
-     TODO:
-     * Evaluate quality of the callset and produce a report/write stats to SQL 
-     
-     
-     
+     * Use SNPeff to get synonymous variant
+     * Store the callset in HD5 format for easy access
+     * Compute QC statistics and output to Jupyter notebook reports
+
+
 Inputs
 ^^^^^^^
-**gVCF** .g.vcf 
+**gVCF** .g.vcf
     Individually called gVCFs output from Library pipeline
     For each library in --lib-list the pipeline will expect a gVCF --gvcf-dir/LIBxxxxxxx/LIBxxxxxxx.g.vcf
 
-**Exon Mask** .bed 
+**Exon Mask** .bed
     To speed up the analysis of RNAseq data use the existing gene annotations and only call variants in exon regions.
-    
+
 Outputs
 ^^^^^^^^
-**_SNPs.vcf.gz**
+**_SNPs[.vcf.gz,.h5]**
     Filtered single nucleotide variants
-
-**_RefSNPs.vcf.gz**
+**_RefSNPs[.vcf.gz,.h5]**
     Filtered single nucleotide variants and sites called as homokaryotic reference-like
 **_INDELs.vcf.gz**
     Filtered multinucleotide variants
-    
-TODO:
-    * QC plots 
-    * Statistical summaries
-    
-    
-    
+**_SNPs_syn[.vcf.gz,.h5]**
+    Synonymous sites only
+**Raw.ipynb**
+    Notebook reporting on QC metrics of the raw callset
+**Filtered.ipynb**
+    Notebook reporting on QC metrics of the filtered callset
+**SNPs.ipynb**
+    Notebook reporting on QC metrics of just the SNPs
+
+
 Flags
 ^^^^^
 
@@ -161,7 +143,7 @@ Flags
 
 .. attribute:: --base-dir
 
-    Base of the output directory structure:: 
+    Base of the output directory structure::
         \|--BASE_DIR
             \|--callsets
                 \|--(output-prefix)
@@ -170,15 +152,15 @@ Flags
 
     Scratch directory
 
-.. attribute:: --gVCF-dir 
+.. attribute:: --gVCF-dir
 
     Folder to look for gVCFs in
-    
-.. attribute:: --reference 
+
+.. attribute:: --reference
 
     Reference genome FASTA (must have index in same folder)
 
-.. attribute:: --lib-list 
+.. attribute:: --lib-list
 
     JSON formatted list of librariries to jointly genotype
 
@@ -187,28 +169,67 @@ NB: To speed up the analysis this pipeline makes heavy use of ScatterGather.
 It scatters the regions in --mask and passes these to GenotypeGVCF though the -L flag. It then scatters the resulting vcf.gz files line-by-line for filtering.
 The number of scatter gather spits to make for this is set in Callset.py, if running as module as below this parameter is exposed as the second arg.
 
-Like Library.py, Callset.py is designed to be run as a script taking a text file containing as list of libraries as the first arg and number if SG splits as the second.
+Callset.py is designed to be run as a script taking a text file containing as list of libraries as the first arg and number of SG splits as the second.
 The name of the libraries file is taken as the output-prefix for the callset.
 
- 
+
 .. code-block:: bash
 
-    #!/bin/sh
-    #SBATCH --mem 16000
-    #SBTACH -N 1
-    #SBATCH -n 1
-    #SBATCH -c 1
-    #SBATCH -p tgac-medium
-    
-    cd /tgac/workarea/collaborators/saunderslab/FP_pipeline/
-    source /tgac/workarea/collaborators/saunderslab/FP_pipeline/production/bin/activate
-    
-    export LUIGI_CONFIG_PATH=/tgac/workarea/collaborators/saunderslab/FP_pipeline/luigi.cfg
-    
-    srun python -m src.pipelines.Callset all_libs.txt 50 \
-    --base-dir /tgac/workarea/collaborators/saunderslab/FP_pipeline/data/ 
-    --gVCF-dir /tgac/workarea/collaborators/saunderslab/FP_pipeline/data/libraries/
-    --workers 150 
+    ./scripts/Callset.sh my_callset.txt 10
 
-To run efficiently need 3x as many workers as scatter gather splits ie 50 and 150 here.
+
+Tree Pipeline
+-----------------
+
+This follows on from the Callset pipeline and runs RAxML to make a phylogenetic tree.
+It takes a list of libraries as an input and will create a new callset containing exactly these libraries if one does not already exist.
+
+Key steps:
+    * Apply the SNPs to the reference to create a pair of pseudohaplotype sequences
+    * Extract the coding sequence regions described in the GFF
+    * For each gene decide whether it has enough coverage (>80%) to be used then concatenate all genes from a sample
+    * Decide if each sample has enough coverage (>80%) to be included
+    * Get the 3rd codon position
+    * Run RAxML and bootstrap
+
+Flags
+^^^^^
+.. attribute:: --gff
+
+    GFF file describing the gene annotations
+
+
+Outputs
+^^^^^^^^
+
+.. code-block:: bash
+
+    ./scripts/Tree.sh my_callset.txt
+
+
+Transcripts Pipeline
+---------------------
+
+This uses various programs for RNAseq transcript assembly to create a set of consensus transcript annotations.
+
+Key steps:
+    * Stringtie reference guided transcript assembly
+    * Cufflinks reference guided transcript assembly
+    * Trinity de novo transcript assembly
+    * Portcullis splice junction identification
+    * Transdecoder ORF finder
+    * BLAST against Uniprot
+    * Mikado unification
+
+
+Flags
+^^^^^
+
+
+Outputs
+^^^^^^^^
+
+.. code-block:: bash
+
+    ./scripts/Transcripts.sh my_callset.txt
 

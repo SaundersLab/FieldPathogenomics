@@ -14,6 +14,8 @@ Contents:
 
    intro
    getting_started
+   writing_a_new_task
+   scatter_gather
    protocols
    output_data
    pipelines

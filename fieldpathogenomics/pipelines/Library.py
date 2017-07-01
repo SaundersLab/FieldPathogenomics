@@ -160,37 +160,6 @@ class FastxQC(SlurmExecutableTask):
                    nt_dist_R2=self.output()['nt_dist_R2'].path)
 
 
-@requires(FetchFastqGZ)
-class FastxTrimmer(CheckTargetNonEmpty, SlurmExecutableTask):
-    '''Uses FastxTrimmer to remove Illumina adaptors and barcodes'''
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Set the SLURM request params for this task
-        self.mem = 1000
-        self.n_cpu = 1
-        self.partition = "nbi-medium"
-
-    def output(self):
-        return [LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, "filtered_R1.fastq.gz")),
-                LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library, "filtered_R2.fastq.gz"))]
-
-    def work_script(self):
-        return '''#!/bin/bash
-        source fastx_toolkit-0.0.13.2
-        set -euo pipefail
-
-        gzip -cd {R1_in} | fastx_trimmer -f14 -Q33 | gzip > {R1_out}.temp ;
-        gzip -cd {R2_in} | fastx_trimmer -f14 -Q33 | gzip > {R2_out}.temp ;
-
-        mv {R1_out}.temp {R1_out}
-        mv {R2_out}.temp {R2_out}
-        '''.format(R1_in=self.input()[0].path,
-                   R2_in=self.input()[1].path,
-                   R1_out=self.output()[0].path,
-                   R2_out=self.output()[1].path)
-
-
 @requires(Trimmomatic)
 class Star(CheckTargetNonEmpty, SlurmExecutableTask):
     '''Runs STAR to align to the reference :param str star_genome:'''

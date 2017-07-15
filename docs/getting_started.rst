@@ -65,7 +65,7 @@ It is only necessary to have on instance of the scheduler running at a time, so 
 
 .. code-block:: bash
 
-    sbatch /nbi/Research-Groups/JIC/Diane-Saunders/FP_project/FP_pipeline/scripts/luigid_init.sh
+    sbatch /nbi/software/testing/saunderslab/FP_prod/scripts/luigid_init.sh
 
 
 This will start a new scheduler running on j256n6

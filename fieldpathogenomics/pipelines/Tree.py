@@ -154,6 +154,7 @@ class GFFread(SlurmExecutableTask, CheckTargetNonEmpty):
 class GetConsensusesWrapper(luigi.Task):
     lib_list = luigi.ListParameter()
     library = None
+    consensus_type = None
 
     def requires(self):
         return {consensus_type: [self.clone_parent(library=library, consensus_type=consensus_type)

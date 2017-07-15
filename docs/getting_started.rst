@@ -4,7 +4,7 @@ Getting Started
 The code for running the fielpathogenomics pipelines is split accross three locations:
 
 - Github https://github.com/SaundersLab/FieldPathogenomics
-- Production environment
+- Production environment (production code: /nbi/software/testing/saunderslab/FP_prod, production data: /nbi/Research-Groups/JIC/Diane-Saunders/FP_project/FP_pipeline/data, production scratch: /nbi/scratch/fieldpathogenomics)
 - Local development environments
 
 The idea being that the version of the code/data in the production environment is stable/tested and corresponds to a named (e.g. v0.2.0) version of code.
@@ -35,9 +35,9 @@ You will then need to specify 3 things:
     .. code-block:: bash
 
         ./init_working_copy.sh --dev-dir=/usr/users/ga004/buntingd/FP_dev \
+                               --base-dir=/usr/users/ga004/buntingd/FP_dev/data \
                                --scratch-dir=/nbi/scratch/buntingd \
-                               --prod-dir=/usr/users/ga004/buntingd/FP_prod \
-                               --base-dir=/usr/users/ga004/buntingd/FP_dev/data
+                               --prod-dir=/nbi/software/testing/saunderslab/FP_prod 
     This will take some time
 
 **3. Run the test scripts**

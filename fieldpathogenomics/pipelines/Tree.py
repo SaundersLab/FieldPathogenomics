@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import multiprocessing
 
 import fieldpathogenomics
 from fieldpathogenomics.pipelines.Callset import GetRefSNPs
@@ -302,6 +303,7 @@ class RAxML_Combine(SlurmExecutableTask):
 
 
 if __name__ == '__main__':
+    multiprocessing.set_start_method('forkserver')
     logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
                                            pipeline_name=os.path.basename(__file__))
 

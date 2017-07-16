@@ -4,6 +4,7 @@ import json
 import math
 import shutil
 from glob import glob
+import multiprocessing
 
 import luigi
 from luigi import LocalTarget
@@ -532,6 +533,7 @@ class CleanUpCallset(luigi.Task):
 
 
 if __name__ == '__main__':
+    multiprocessing.set_start_method('forkserver')
     logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
                                            pipeline_name=os.path.basename(__file__))
 

@@ -3,6 +3,7 @@ import sys
 import json
 import shutil
 import sqlalchemy
+import multiprocessing
 
 import luigi
 from luigi.contrib import sqla
@@ -641,6 +642,7 @@ class LibraryBatchWrapper(luigi.WrapperTask):
 
 
 if __name__ == '__main__':
+    multiprocessing.set_start_method('forkserver')
     logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
                                            pipeline_name=PIPELINE)
 

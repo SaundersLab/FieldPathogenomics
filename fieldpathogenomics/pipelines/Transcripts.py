@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import multiprocessing
 
 import luigi
 from luigi import LocalTarget
@@ -671,6 +672,7 @@ class MikadoCompare(CheckTargetNonEmpty, SlurmExecutableTask):
 
 
 if __name__ == '__main__':
+    multiprocessing.set_start_method('forkserver')
     logger, alloc_log = utils.logging_init(log_dir=os.path.join(os.getcwd(), 'logs'),
                                            pipeline_name=os.path.basename(__file__))
 

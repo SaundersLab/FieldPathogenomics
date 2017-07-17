@@ -3,7 +3,7 @@ import sys
 import json
 import shutil
 import sqlalchemy
-import multiprocessing
+import multiprocessing_on_dill as multiprocessing
 
 import luigi
 from luigi.contrib import sqla

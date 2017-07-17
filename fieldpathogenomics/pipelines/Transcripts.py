@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-import multiprocessing
+import multiprocessing_on_dill as multiprocessing
 
 import luigi
 from luigi import LocalTarget

@@ -4,7 +4,7 @@ import json
 import math
 import shutil
 from glob import glob
-import multiprocessing
+import multiprocessing_on_dill as multiprocessing
 
 import luigi
 from luigi import LocalTarget

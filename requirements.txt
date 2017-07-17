@@ -44,7 +44,7 @@ jupyter-core==4.3.0
 line-profiler==2.0
 locket==0.2.0
 lockfile==0.12.2
--e git+https://github.com/dnlbunting/luigi.git@4424e9954b17763579caf9d27f566971b5a7499a#egg=luigi
+-e git+https://github.com/dnlbunting/luigi.git#egg=luigi
 -e git+https://github.com/SaundersLab/bioluigi.git#egg=bioluigi
 MarkupSafe==1.0
 matplotlib==1.5.3
@@ -53,6 +53,7 @@ Mikado==1.0.0b9
 mistune==0.7.4
 msgpack-python==0.4.8
 multiqc==0.9
+multiprocessing-on-dill==3.5.0a4
 nbconvert==5.1.1
 nbformat==4.3.0
 nbsphinx==0.2.13

@@ -10,7 +10,7 @@ import luigi
 from luigi import LocalTarget
 from luigi.file import TemporaryFile
 
-from bioluigi.slurm import SlurmExecutableTask
+from bioluigi.slurm import SlurmExecutableTask, SlurmTask
 from bioluigi.utils import CheckTargetNonEmpty
 from bioluigi.decorators import requires, inherits
 from bioluigi.scattergather import ScatterGather
@@ -383,68 +383,50 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 
 
-class VCFtoHDF5(SlurmExecutableTask):
+class VCFtoHDF5(SlurmTask):
     '''Converts the text vcf files into HD5 files, these are binary
        and compressed so are much easier to work with downstream'''
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the SLURM request params for this task
-        self.mem = 64000
+        self.mem = 16000
         self.n_cpu = 1
         self.partition = "nbi-medium"
 
     def output(self):
         return LocalTarget(utils.get_ext(self.input().path)[0] + ".hd5")
 
-    def to_str_params(self, only_significant=False):
-        sup = super().to_str_params(only_significant)
-        extras = {'input': self.input().path}
-        return dict(list(sup.items()) + list(extras.items()))
+    def work(self):
+        import allel
+        from luigi.file import atomic_file
 
-    def work_script(self):
-        cache_dir = self.output().path + '.cache'
-        shutil.rmtree(cache_dir, ignore_errors=True)
-        os.makedirs(cache_dir)
-        return '''#!/bin/bash
-                {python}
-                rm {output}.temp
-                source vcftools-0.1.13
-                set -eo pipefail
+        af = atomic_file(self.output().path)
 
-                tabix -f -p vcf {input}
+        allel.vcf_to_hdf5(self.input().path,
+                          af.tmp_path,
+                          numbers={'AD': 6},
+                          fields='*',
+                          overwrite=True)
 
-                vcf2npy --vcf {input} --arity 'AD:6' --array-type calldata_2d --output-dir {cache_dir}
-                vcf2npy --vcf {input} --arity 'AD:6' --exclude-field ANN --array-type variants --output-dir {cache_dir}
-
-                vcfnpy2hdf5 --vcf {input} --input-dir {cache_dir} --output {output}.temp
-
-                mv {output}.temp {output}
-                '''.format(python=utils.python,
-                           input=self.input().path,
-                           cache_dir=cache_dir,
-                           output=self.output().path)
+        af.move_to_final_destination()
 
 
-@ScatterGather(ScatterVCF, GatherHD5s, N_scatter)
 @requires(GenotypeGVCF)
 class VCFtoHDF5Raw(VCFtoHDF5):
     pass
 
 
-@ScatterGather(ScatterVCF, GatherHD5s, N_scatter)
 @requires(GetSyn)
 class VCFtoHDF5Syn(VCFtoHDF5):
     pass
 
 
-@ScatterGather(ScatterVCF, GatherHD5s, N_scatter)
 @requires(VcfToolsFilter)
 class VCFtoHDF5Filt(VCFtoHDF5):
     pass
 
 
-@ScatterGather(ScatterVCF, GatherHD5s, N_scatter)
 @requires(GetSNPs)
 class VCFtoHDF5Snps(VCFtoHDF5):
     pass

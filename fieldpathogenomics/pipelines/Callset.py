@@ -399,6 +399,7 @@ class VCFtoHDF5(SlurmTask):
 
     def work(self):
         import allel
+        import sys
         from luigi.file import atomic_file
 
         af = atomic_file(self.output().path)
@@ -407,7 +408,10 @@ class VCFtoHDF5(SlurmTask):
                           af.tmp_path,
                           numbers={'AD': 6},
                           fields='*',
-                          overwrite=True)
+                          fills={'AC': 0, 'AF': 0, 'DP': 0,
+                                 'calldata/AC': 0, 'calldata/AF': 0, 'calldata/DP': 0},
+                          overwrite=True,
+                          log=sys.stdout)
 
         af.move_to_final_destination()
 

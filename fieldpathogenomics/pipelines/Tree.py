@@ -219,19 +219,20 @@ class RAxML(SlurmExecutableTask):
         self.mem = 4000
         self.n_cpu = 10
         self.partition = "nbi-long,RG-Diane-Saunders"
+        self.sbatch_args = '--constraint=intel'
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'mle', "RAxML_result." + self.output_prefix))
 
     def work_script(self):
         return '''#!/bin/bash
-               source raxml-8.2.9;
+               source raxml-8.2.11;
 
                cd {output_dir}
                rm {output_dir}/RAxML*
                set -euo pipefail
 
-               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix}.temp -p 100 ;
+               raxmlHPC-PTHREADS-AVX -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix}.temp -p 100 ;
 
                mv RAxML_result.{suffix}.temp RAxML_result.{suffix}
                '''.format(output_dir=os.path.split(self.output().path)[0],
@@ -248,18 +249,19 @@ class RAxML_Bootstrap(SlurmExecutableTask):
         self.mem = 1000
         self.n_cpu = 20
         self.partition = "nbi-long,RG-Diane-Saunders"
+        self.sbatch_args = '--constraint=intel'
 
     def output(self):
         return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'bootstraps', "RAxML_bootstrap." + self.output_prefix))
 
     def work_script(self):
         return '''#!/bin/bash
-               source raxml-8.2.9;
+               source raxml-8.2.11;
                cd {output_dir}
                rm {output_dir}/RAxML*
                set -euo pipefail
 
-               raxmlHPC-PTHREADS-SSE3 -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix}.temp -p 100 -b 1234 -N 100;
+               raxmlHPC-PTHREADS-AVX -T {n_cpu} -s {input} -m GTRGAMMA -n {suffix}.temp -p 100 -b 1234 -N 100;
 
                mv RAxML_bootstrap.{suffix}.temp RAxML_bootstrap.{suffix}
                '''.format(output_dir=os.path.split(self.output().path)[0],

@@ -126,7 +126,7 @@ class BCFtoolsConsensus(SlurmExecutableTask, CheckTargetNonEmpty):
 
 @requires(BCFtoolsConsensus)
 class GFFread(SlurmExecutableTask, CheckTargetNonEmpty):
-    '''Pull out the spliced exons from the genomes'''
+    '''Pull out the spliced CDS from the genomes'''
     gff = luigi.Parameter()
 
     def __init__(self, *args, **kwargs):

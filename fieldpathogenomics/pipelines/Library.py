@@ -4,6 +4,7 @@ import json
 import shutil
 import sqlalchemy
 import multiprocessing_on_dill as multiprocessing
+import hashlib
 
 import luigi
 from luigi.contrib import sqla
@@ -276,6 +277,7 @@ class AlignmentStats(sqla.CopyToTable):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._update_id = hashlib.sha1(self.input()['star_log'].path.encode()).hexdigest()
 
     def rows(self):
         genome = os.path.split(self.star_genome)[1]
@@ -287,7 +289,7 @@ class AlignmentStats(sqla.CopyToTable):
         return self._rows
 
     def update_id(self):
-        return hash(self.input()['star_log'].path)
+        return self._update_id
 
 
 @requires(Star)
@@ -593,7 +595,7 @@ class PlotAlleleFreq(SlurmTask):
         plt.gcf().savefig(self.output().path)
 
 
-@requires(Trimmomatic, FastxQC, FastQC, AlignmentStats)
+@requires(FastxQC, FastQC)
 class CombinedQC(luigi.WrapperTask):
     '''Wrapper task that runs all the QC type tasks library'''
     pass

@@ -59,7 +59,7 @@ fi
 ssh -t -t software <<- HERE
     # Use the internet connected node to install required packages
     source $prod_dir/production/bin/activate
-    pip install --upgrade  --force-reinstall  -e git+https://github.com/SaundersLab/FieldPathogenomics.git@${NEW}#egg=fieldpathogenomics
+    pip install --upgrade  --force-reinstall --exists-action w  -e git+https://github.com/SaundersLab/FieldPathogenomics.git@${NEW}#egg=fieldpathogenomics
     exit
 HERE
 
@@ -68,7 +68,7 @@ function install_requirements {
 ssh -t -t software << HERE
 # Use the internet connected node to install required packages
 source $prod_dir/production/bin/activate
-pip install -r $prod_dir/production/src/fieldpathogenomics/requirements.txt
+pip install -r $prod_dir/production/src/fieldpathogenomics/requirements.txt --exists-action wj
 exit
 HERE
 

@@ -397,7 +397,7 @@ class PortcullisFilter(SlurmExecutableTask):
                 'junc': self.clone(PortcullisJunc)}
 
     def output(self):
-        return LocalTarget(os.path.join(self.scratch_dir, VERSION, PIPELINE, self.output_prefix, 'portcullis_filter'))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'portcullis_filter'))
 
     def work_script(self):
         self.temp = TemporaryFile()

@@ -206,9 +206,30 @@ class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
                            temp1=self.temp1.path,
                            temp2=self.temp2.path)
 
+@requires(VcfToolsFilter)
+class CalcSampleCoverage(SlurmTask):
+
+    def work(self):
+        # Load VCF
+        # Coverage per sample
+        # Write list of pass/fail samples
+
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
-@inherits(VcfToolsFilter)
+@inherits(CalcSampleCoverage, VcfToolsFilter)
+class FilterSampleCoverage(SlurmExecutableTask, CheckTargetNonEmpty):
+
+    def work_script(self):
+        return '''#!/bin/bash
+                source vcftools-0.1.13;
+                source bcftools-1.3.1;
+                set -eo pipefail
+                bcftools view {input} -o {vcf}.temp -O z -s {library} --exclude-uncalled --no-update
+                '''
+
+
+@ScatterGather(ScatterVCF, GatherVCF, N_scatter)
+@inherits(FilterSampleCoverage)
 class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
     '''Extracts just sites with only biallelic SNPs that have a least one variant isolate'''
 
@@ -307,7 +328,7 @@ class GetSyn(SlurmExecutableTask, CheckTargetNonEmpty):
 
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
-@inherits(VcfToolsFilter)
+@inherits(FilterSampleCoverage)
 class GetINDELs(SlurmExecutableTask, CheckTargetNonEmpty):
     '''Get sites with MNPs'''
 
@@ -343,7 +364,7 @@ class GetINDELs(SlurmExecutableTask, CheckTargetNonEmpty):
 
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
-@inherits(VcfToolsFilter)
+@inherits(FilterSampleCoverage)
 class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
     '''Create a VCF with SNPs and include sites that are reference like in all samples'''
 
@@ -426,7 +447,7 @@ class VCFtoHDF5Syn(VCFtoHDF5):
     pass
 
 
-@requires(VcfToolsFilter)
+@requires(FilterSampleCoverage)
 class VCFtoHDF5Filt(VCFtoHDF5):
     pass
 
@@ -542,7 +563,7 @@ if __name__ == '__main__':
                                            pipeline_name=os.path.basename(__file__))
 
     with open(sys.argv[1], 'r') as libs_file:
-        lib_list = [line.rstrip() for line in libs_file]
+        lib_list = [line.rstrip() for line in libs_file if line[0] != '#']
 
     name = os.path.split(sys.argv[1])[1].split('.', 1)[0]
 

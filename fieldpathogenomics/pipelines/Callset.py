@@ -43,6 +43,39 @@ job.mem is actually mem_per_cpu
 N_scatter = int(sys.argv[2]) if __name__ == '__main__' else 5
 
 
+class VCFtoHDF5(SlurmTask):
+    '''Converts the text vcf files into HD5 files, these are binary
+       and compressed so are much easier to work with downstream'''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 16000
+        self.n_cpu = 1
+        self.partition = "nbi-medium"
+
+    def output(self):
+        return LocalTarget(utils.get_ext(self.input().path)[0] + ".hd5")
+
+    def work(self):
+        import allel
+        import sys
+        from luigi.file import atomic_file
+
+        af = atomic_file(self.output().path)
+
+        allel.vcf_to_hdf5(self.input().path,
+                          af.tmp_path,
+                          numbers={'AD': 6},
+                          fields='*',
+                          fills={'AC': 0, 'AF': 0, 'DP': 0,
+                                 'calldata/AC': 0, 'calldata/AF': 0, 'calldata/DP': 0},
+                          overwrite=True,
+                          log=sys.stdout)
+
+        af.move_to_final_destination()
+
+
 class GenomeContigs(luigi.ExternalTask):
     '''one per line list of contigs in the genome'''
     mask = luigi.Parameter()
@@ -160,6 +193,11 @@ class GenotypeGVCF(SlurmExecutableTask, CheckTargetNonEmpty):
                            variants="\\\n".join([" --variant " + lib.path for lib in self.input()[1]]))
 
 
+@requires(GenotypeGVCF)
+class VCFtoHDF5Raw(VCFtoHDF5):
+    pass
+
+
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
 @inherits(GenotypeGVCF)
 class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
@@ -206,35 +244,47 @@ class VcfToolsFilter(SlurmExecutableTask, CheckTargetNonEmpty):
                            temp1=self.temp1.path,
                            temp2=self.temp2.path)
 
+
 @requires(VcfToolsFilter)
-class CalcSampleCoverage(SlurmTask):
+class VCFtoHDF5Filt(VCFtoHDF5):
+    pass
+
+
+@requires(VCFtoHDF5Filt)
+class SampleCoverageFilter(SlurmTask):
+    min_sample_coverage = luigi.FloatParameter(0.4)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 1000
+        self.n_cpu = 4
+        self.partition = "nbi-medium"
+
+    def output(self):
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + "_passed_samples.txt"))
 
     def work(self):
-        # Load VCF
-        # Coverage per sample
-        # Write list of pass/fail samples
+        import allel
+        import h5py
+
+        callset = h5py.File(self.input().path, mode='r')
+        genotypes = allel.GenotypeDaskArray(callset['calldata']['GT'])
+        missing = (genotypes.count_missing(axis=0) / genotypes.shape[0]).compute(num_workers=self.n_cpu)
+        filtered = callset['samples'][missing <= (1 - self.min_sample_coverage)]
+
+        print("Sample\tMissing rate")
+        for s, c in zip(callset['samples'], missing):
+            print(s + "\t" + str(c))
+
+        with self.output().open('w') as fout:
+            fout.write('\n'.join(filtered))
 
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
-@inherits(CalcSampleCoverage, VcfToolsFilter)
-class FilterSampleCoverage(SlurmExecutableTask, CheckTargetNonEmpty):
-
-    def work_script(self):
-        return '''#!/bin/bash
-                source vcftools-0.1.13;
-                source bcftools-1.3.1;
-                set -eo pipefail
-                bcftools view {input} -o {vcf}.temp -O z -s {library} --exclude-uncalled --no-update
-                '''
-
-
-@ScatterGather(ScatterVCF, GatherVCF, N_scatter)
-@inherits(FilterSampleCoverage)
+@requires(VcfToolsFilter, SampleCoverageFilter)
 class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
     '''Extracts just sites with only biallelic SNPs that have a least one variant isolate'''
-
-    def requires(self):
-        return self.clone(VcfToolsFilter)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -256,6 +306,7 @@ class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
 
                   $gatk -T -T SelectVariants -V {input} -R {reference} --restrictAllelesTo BIALLELIC \
                                                                        --selectTypeToInclude SNP \
+                                                                       --sample_file {samples} \
                                                                        --out {output}.temp.vcf.gz
 
                   # Filter out * which represents spanning deletions
@@ -263,7 +314,8 @@ class GetSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
 
                   rm {output}.temp.vcf.gz
                   mv {output}.temp2.vcf.gz {output}
-                  '''.format(input=self.input().path,
+                  '''.format(input=self.input()[0].path,
+                             samples=self.input()[1].path,
                              output=self.output().path,
                              reference=self.reference,
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
@@ -328,12 +380,10 @@ class GetSyn(SlurmExecutableTask, CheckTargetNonEmpty):
 
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
-@inherits(FilterSampleCoverage)
+@requires(VcfToolsFilter, SampleCoverageFilter)
 class GetINDELs(SlurmExecutableTask, CheckTargetNonEmpty):
     '''Get sites with MNPs'''
 
-    def requires(self):
-        return self.clone(VcfToolsFilter)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -354,22 +404,21 @@ class GetINDELs(SlurmExecutableTask, CheckTargetNonEmpty):
 
                   $gatk -T -T SelectVariants -V {input} -R {reference} --selectTypeToInclude MNP \
                                                                        --selectTypeToInclude MIXED \
+                                                                       --sample_file {samples} \
                                                                        --out {output}.temp.vcf.gz
 
                   mv {output}.temp.vcf.gz {output}
-                  '''.format(input=self.input().path,
+                  '''.format(input=self.input()[0].path,
+                             samples=self.input()[1].path,
                              output=self.output().path,
                              reference=self.reference,
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 
 
 @ScatterGather(ScatterVCF, GatherVCF, N_scatter)
-@inherits(FilterSampleCoverage)
+@requires(VcfToolsFilter, SampleCoverageFilter)
 class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
     '''Create a VCF with SNPs and include sites that are reference like in all samples'''
-
-    def requires(self):
-        return self.clone(VcfToolsFilter)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -392,63 +441,22 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                   $gatk -T SelectVariants -V {input} -R {reference} \
                         --selectTypeToInclude NO_VARIATION \
                         --selectTypeToInclude SNP \
+                        --sample_file {samples} \
                         --out {output}.temp.vcf.gz
 
                   # Filter out * which represents spanning deletions
                   gzip -cd {output}.temp.vcf.gz | grep -v $'[,\t]\*' | bgzip -c > {output}.temp2.vcf.gz
 
                   mv {output}.temp2.vcf.gz {output}
-                  '''.format(input=self.input().path,
+                  '''.format(input=self.input()[0].path,
+                             samples=self.input()[1].path,
                              output=self.output().path,
                              reference=self.reference,
                              gatk=gatk.format(mem=self.mem * self.n_cpu))
 
 
-class VCFtoHDF5(SlurmTask):
-    '''Converts the text vcf files into HD5 files, these are binary
-       and compressed so are much easier to work with downstream'''
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Set the SLURM request params for this task
-        self.mem = 16000
-        self.n_cpu = 1
-        self.partition = "nbi-medium"
-
-    def output(self):
-        return LocalTarget(utils.get_ext(self.input().path)[0] + ".hd5")
-
-    def work(self):
-        import allel
-        import sys
-        from luigi.file import atomic_file
-
-        af = atomic_file(self.output().path)
-
-        allel.vcf_to_hdf5(self.input().path,
-                          af.tmp_path,
-                          numbers={'AD': 6},
-                          fields='*',
-                          fills={'AC': 0, 'AF': 0, 'DP': 0,
-                                 'calldata/AC': 0, 'calldata/AF': 0, 'calldata/DP': 0},
-                          overwrite=True,
-                          log=sys.stdout)
-
-        af.move_to_final_destination()
-
-
-@requires(GenotypeGVCF)
-class VCFtoHDF5Raw(VCFtoHDF5):
-    pass
-
-
 @requires(GetSyn)
 class VCFtoHDF5Syn(VCFtoHDF5):
-    pass
-
-
-@requires(FilterSampleCoverage)
-class VCFtoHDF5Filt(VCFtoHDF5):
     pass
 
 

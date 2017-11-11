@@ -441,6 +441,7 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                   $gatk -T SelectVariants -V {input} -R {reference} \
                         --selectTypeToInclude NO_VARIATION \
                         --selectTypeToInclude SNP \
+                        --restrictAllelesTo BIALLELIC \
                         --sample_file {samples} \
                         --out {output}.temp.vcf.gz
 
@@ -465,7 +466,12 @@ class VCFtoHDF5Snps(VCFtoHDF5):
     pass
 
 
-@requires(raw=VCFtoHDF5Raw, syn=VCFtoHDF5Syn, filtered=VCFtoHDF5Filt, snps=VCFtoHDF5Snps)
+@requires(GetRefSNPs)
+class VCFtoHDF5RefSnps(VCFtoHDF5):
+    pass
+
+
+@requires(raw=VCFtoHDF5Raw, syn=VCFtoHDF5Syn, filtered=VCFtoHDF5Filt, snps=VCFtoHDF5Snps, refsnps=VCFtoHDF5RefSnps)
 class HD5s(luigi.WrapperTask):
     '''Wrapper providing access to HD5 encoded variant matrices'''
     def output(self):

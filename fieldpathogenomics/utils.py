@@ -6,6 +6,48 @@ import inspect
 import zlib
 import logging
 import time
+import allel
+import numpy as np
+
+###############################################################################
+#                           Variant Indexing                                  #
+###############################################################################
+
+
+class Contig():
+    '''Makes Contigs follow the correct sort order by skipping a prefix
+       of length plen'''
+
+    def __init__(self, contig, plen):
+        self.plen = plen
+        self.contig = contig
+
+    def __delitem__(self, key):
+        self.contig.__delitem__(key)
+    def __getitem__(self, key):
+        return self.contig.__getitem__(key)
+    def __setitem__(self, key, value):
+        self.contig.__setitem__(key, value)
+
+    def __eq__(self, *args, **kwargs):
+        return super().__eq__(*args, **kwargs)
+    def __lt__(self, other):
+        return int(self[self.plen:]).__lt__(int(other[self.plen:]))
+    def __le__(self, other):
+        return int(self[self.plen:]).__le__(int(other[self.plen:]))
+    def __gt__(self, other):
+        return int(self[self.plen:]).__gt__(int(other[self.plen:]))
+    def __ge__(self, other):
+        return int(self[self.plen:]).__ge__(int(other[self.plen:]))
+    def __repr__(self):
+        return self.contig.__repr__()
+
+def index_variants(variants, plen):
+    '''Create a CHROM/POS multiindex for VariantsTable
+       where the contig number has a prefix (eg PST130_)
+       of length plen'''
+    index = allel.SortedMultiIndex(np.array([Contig(x, plen) for x in variants['CHROM'][:]], dtype=Contig), variants['POS'][:])
+    return index
 
 ###############################################################################
 #                               File handling                                  #

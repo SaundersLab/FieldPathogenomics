@@ -8,6 +8,10 @@ import logging
 import time
 import allel
 import numpy as np
+import Bio
+import Bio.SeqIO
+import Bio.AlignIO
+from collections import Counter
 
 ###############################################################################
 #                           Variant Indexing                                  #
@@ -24,23 +28,31 @@ class Contig():
 
     def __delitem__(self, key):
         self.contig.__delitem__(key)
+
     def __getitem__(self, key):
         return self.contig.__getitem__(key)
+
     def __setitem__(self, key, value):
         self.contig.__setitem__(key, value)
 
     def __eq__(self, *args, **kwargs):
         return super().__eq__(*args, **kwargs)
+
     def __lt__(self, other):
         return int(self[self.plen:]).__lt__(int(other[self.plen:]))
+
     def __le__(self, other):
         return int(self[self.plen:]).__le__(int(other[self.plen:]))
+
     def __gt__(self, other):
         return int(self[self.plen:]).__gt__(int(other[self.plen:]))
+
     def __ge__(self, other):
         return int(self[self.plen:]).__ge__(int(other[self.plen:]))
+
     def __repr__(self):
         return self.contig.__repr__()
+
 
 def index_variants(variants, plen):
     '''Create a CHROM/POS multiindex for VariantsTable
@@ -48,6 +60,57 @@ def index_variants(variants, plen):
        of length plen'''
     index = allel.SortedMultiIndex(np.array([Contig(x, plen) for x in variants['CHROM'][:]], dtype=Contig), variants['POS'][:])
     return index
+
+
+class Gene():
+
+    def __init__(self, annotation, calldata, variants, samples, index):
+        self.chr, _, _, self.start, self.end, *_ = annotation
+        self.gene_locs = (self.chr, self.start, self.end)
+
+        self.index = index
+        self.samples = samples
+        self.genotypes = allel.GenotypeArray(calldata[self.mask(), :])
+        self.variants = variants[self.mask()]
+        self.snp_genotypes = self.genotypes[self.variants['is_snp']]
+
+    def mask(self):
+        return self.index.locate_range(self.chr, self.start, self.end)
+
+    def get_invariants(self):
+        return {k: v for k, v in
+                Counter(self.variants['REF'][~self.variants['is_snp']]).items()
+                if len(k) == 1}
+
+    def snp_MSA(self):
+        msa = [Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(''), id=self.samples[i])
+               for i in range(self.genotypes.shape[1])]
+
+        iupac_het = {'AG': 'R', 'GA': 'R', 'AT': 'W', 'TA': 'W',
+                     'CT': 'Y', 'TC': 'Y', 'GT': 'K', 'TG': 'K',
+                     'GC': 'S', 'CG': 'S', 'AC': 'M', 'CA': 'M'}
+
+        alts = self.variants[self.variants['is_snp']]['ALT'][:, 0]
+        refs = self.variants[self.variants['is_snp']]['REF']
+        Ns = np.array(['N'] * self.snp_genotypes.shape[0])
+        hets = np.array([iupac_het[x[0] + x[1]] for x in zip(refs, alts)])
+        X = np.vstack((alts, hets, refs, Ns)).T
+
+        for i in range(self.snp_genotypes.shape[0]):
+            site = X[i, self.snp_genotypes.to_n_ref(fill=-1)[i]]
+
+            # RAxML counts a site with just N and a base as invariant so remove these
+            uniq_bases = set(list(site))
+            if len(uniq_bases) == 1 or ('N' in uniq_bases and len(uniq_bases) == 2):
+                continue
+
+            for j in range(self.snp_genotypes.shape[1]):
+                msa[j] += site[j]
+        return Bio.Align.MultipleSeqAlignment(msa)
+
+    def coverage(self):
+        '''return a list of all geneids with coverage > min_cov in all sampleids'''
+        return self.genotypes.is_called().mean(axis=0)
 
 ###############################################################################
 #                               File handling                                  #
@@ -77,7 +140,7 @@ reference_dir = '/nbi/Research-Groups/JIC/Diane-Saunders/FP_project/FP_pipeline/
 ###############################################################################
 
 picard = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/picardtools/2.1.1/x86_64/bin/picard.jar"
-gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.7.0/x86_64/GenomeAnalysisTK.jar "
+gatk = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/gatk/3.8.0/x86_64/GenomeAnalysisTK.jar "
 trimmomatic = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/trimmomatic/0.36/x86_64/bin/trimmomatic-0.36.jar "
 snpeff = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4.3g/x86_64/snpEff.jar "
 snpsift = "java -XX:+UseSerialGC -Xmx{mem}M -jar /tgac/software/testing/snpeff/4.3g/x86_64/SnpSift.jar "

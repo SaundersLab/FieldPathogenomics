@@ -441,7 +441,7 @@ class GetRefSNPs(SlurmExecutableTask, CommittedTask, CheckTargetNonEmpty):
                   $gatk -T SelectVariants -V {input} -R {reference} \
                         --selectTypeToInclude NO_VARIATION \
                         --selectTypeToInclude SNP \
-                        --restrictAllelesTo BIALLELIC \
+                        --removeUnusedAlternates  \
                         --sample_file {samples} \
                         --out {output}.temp.vcf.gz
 

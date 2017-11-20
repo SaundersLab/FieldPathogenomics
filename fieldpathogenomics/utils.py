@@ -117,8 +117,8 @@ class GeneSet():
                 yield g[v['is_snp']]
 
     def MSA(self):
-        for v, g in zip(self.variants(), self.genotypes()):
-            vg = g[v['is_snp']]
+        for v, g, vg in zip(self.variants(), self.genotypes(), self.variant_genotypes()):
+
             msa = [Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(''), id=s)
                    for s in self.samples]
             alts = v[v['is_snp']]['ALT'][:, 0]

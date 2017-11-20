@@ -62,55 +62,84 @@ def index_variants(variants, plen):
     return index
 
 
-class Gene():
+iupac_het = {'AG': 'R', 'GA': 'R', 'AT': 'W', 'TA': 'W',
+             'CT': 'Y', 'TC': 'Y', 'GT': 'K', 'TG': 'K',
+             'GC': 'S', 'CG': 'S', 'AC': 'M', 'CA': 'M'}
 
-    def __init__(self, annotation, calldata, variants, samples, index):
-        self.chr, _, _, self.start, self.end, *_ = annotation
-        self.gene_locs = (self.chr, self.start, self.end)
 
-        self.index = index
+class GeneSet():
+    def __init__(self, genes, genotypes, variants, samples, index):
+
+        self._genotypes = genotypes
+        self._variants = variants
+
         self.samples = samples
-        self.genotypes = allel.GenotypeArray(calldata[self.mask(), :])
-        self.variants = variants[self.mask()]
-        self.snp_genotypes = self.genotypes[self.variants['is_snp']]
+        self.index = index
 
-    def mask(self):
-        return self.index.locate_range(self.chr, self.start, self.end)
+        self.masks, gene_idxs, self.lengths = [], [], []
+        for i, c in enumerate(((g[0], g[3], g[4]) for g in genes)):
+            try:
+                self.masks.append(index.locate_range(*c))
+                gene_idxs.append(i)
+                self.lengths.append(c[2] - c[1] + 1)
+            except KeyError:
+                pass
+        # Make sure we only retain genes that have some
+        # sites associated with them to avoid KeyErrors
+        # downstream
+        self.genes = genes[gene_idxs]
 
-    def get_invariants(self):
-        return {k: v for k, v in
-                Counter(self.variants['REF'][~self.variants['is_snp']]).items()
-                if len(k) == 1}
+    def genotypes(self):
+        return (self._genotypes[m] for m in self.masks)
 
-    def snp_MSA(self):
-        msa = [Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(''), id=self.samples[i])
-               for i in range(self.genotypes.shape[1])]
+    def variants(self):
+        return (self._variants[m] for m in self.masks)
 
-        iupac_het = {'AG': 'R', 'GA': 'R', 'AT': 'W', 'TA': 'W',
-                     'CT': 'Y', 'TC': 'Y', 'GT': 'K', 'TG': 'K',
-                     'GC': 'S', 'CG': 'S', 'AC': 'M', 'CA': 'M'}
+    def site_coverages(self):
+        return (g.is_called().sum(axis=1) / len(self.samples)for g in self.genotypes())
 
-        alts = self.variants[self.variants['is_snp']]['ALT'][:, 0]
-        refs = self.variants[self.variants['is_snp']]['REF']
-        Ns = np.array(['N'] * self.snp_genotypes.shape[0])
-        hets = np.array([iupac_het[x[0] + x[1]] for x in zip(refs, alts)])
-        X = np.vstack((alts, hets, refs, Ns)).T
+    def sample_coverages(self):
+        return (g.is_called().sum(axis=0) / g.shape[0] for g in self.genotypes())
 
-        for i in range(self.snp_genotypes.shape[0]):
-            site = X[i, self.snp_genotypes.to_n_ref(fill=-1)[i]]
+    def invariants(self):
+        for var in self.variants():
+            yield {k: v for k, v in
+                   Counter(var['REF'][~var['is_snp']]).items()
+                   if len(k) == 1}
 
-            # RAxML counts a site with just N and a base as invariant so remove these
-            uniq_bases = set(list(site))
-            if len(uniq_bases) == 1 or ('N' in uniq_bases and len(uniq_bases) == 2):
-                continue
+    def variant_genotypes(self):
+        for g, v in zip(self.genotypes(), self.variants()):
+            # Dask boolean indexing seems to break if the dimension is
+            # 1 because it compares True >= dim so hack around that
+            if g.shape[0] == 1 and v['is_snp'][0]:
+                yield g
+            else:
+                yield g[v['is_snp']]
 
-            for j in range(self.snp_genotypes.shape[1]):
-                msa[j] += site[j]
-        return Bio.Align.MultipleSeqAlignment(msa)
+    def MSA(self):
+        for v, g in zip(self.variants(), self.genotypes()):
+            vg = g[v['is_snp']]
+            msa = [Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(''), id=s)
+                   for s in self.samples]
+            alts = v[v['is_snp']]['ALT'][:, 0]
+            refs = v[v['is_snp']]['REF']
+            Ns = np.array(['N'] * vg.shape[0])
+            hets = np.array([iupac_het[x[0] + x[1]] for x in zip(refs, alts)])
+            X = np.vstack((alts, hets, refs, Ns)).T
 
-    def coverage(self):
-        '''return a list of all geneids with coverage > min_cov in all sampleids'''
-        return self.genotypes.is_called().mean(axis=0)
+            for i in range(vg.shape[0]):
+                site = X[i, vg.to_n_ref(fill=-1)[i]]
+
+                # RAxML counts a site with just N and a base as invariant so remove these
+                uniq_bases = set(list(site))
+                if len(uniq_bases) == 1 or ('N' in uniq_bases and len(uniq_bases) == 2):
+                    continue
+
+                for j in range(vg.shape[1]):
+                    msa[j] += site[j]
+            yield Bio.Align.MultipleSeqAlignment(msa)
+
+
 
 ###############################################################################
 #                               File handling                                  #

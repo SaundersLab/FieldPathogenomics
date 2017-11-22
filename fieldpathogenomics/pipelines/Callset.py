@@ -497,11 +497,13 @@ class SNPsNotebook(NotebookTask):
 class FilteredNotebook(NotebookTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.mem = 8000
-        self.n_cpu = 1
-        self.partition = "nbi-medium"
+        self.mem = 4000
+        self.n_cpu = 16
+        self.partition = "nbi-short"
         self.notebook = os.path.join(utils.notebooks, 'Callset', 'Filtered.ipynb')
-        self.vars_dict = {'FILTERED_HD5': self.input()['filtered'].path}
+        self.vars_dict = {'FILTERED_HD5': self.input()['filtered'].path,
+                          'NCPU': self.n_cpu,
+                          'MEM_PER_CPU': self.mem * 1e6}
         logger.info(str(self.vars_dict))
 
     def output(self):
@@ -531,7 +533,7 @@ class QCNotebooks(luigi.WrapperTask):
 # ----------------------------------------------------------------------- #
 
 
-@requires(QCNotebooks, GetSyn, GetRefSNPs, GetINDELs, HD5s)
+@requires(FilteredNotebook, GetSyn, GetRefSNPs, GetINDELs, HD5s)
 class CallsetWrapper(luigi.WrapperTask):
     pass
 

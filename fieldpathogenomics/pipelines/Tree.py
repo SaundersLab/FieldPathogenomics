@@ -9,7 +9,7 @@ import fieldpathogenomics.utils as utils
 
 from bioluigi.slurm import SlurmExecutableTask, SlurmTask
 from bioluigi.utils import CheckTargetNonEmpty
-from bioluigi.decorators import requires
+from bioluigi.decorators import requires, inherits
 
 
 import luigi
@@ -22,6 +22,7 @@ VERSION = fieldpathogenomics.__version__.rsplit('.', 1)[0]
 
 @requires(VCFtoHDF5RefSnps)
 class GetMSA(SlurmTask, CheckTargetNonEmpty):
+    gene_cov = luigi.FloatParameter()
     gff = luigi.Parameter()
 
     def __init__(self, *args, **kwargs):
@@ -32,8 +33,8 @@ class GetMSA(SlurmTask, CheckTargetNonEmpty):
         self.partition = "nbi-medium"
 
     def output(self):
-        return [LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + ".phy")),
-                LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + ".sites"))]
+        return [LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, str(self.gene_cov), self.output_prefix + ".phy")),
+                LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, str(self.gene_cov), self.output_prefix + ".sites"))]
 
     def work(self):
         import allel
@@ -58,7 +59,7 @@ class GetMSA(SlurmTask, CheckTargetNonEmpty):
         invariants = defaultdict(int)
 
         for cov, snps, inv in zip(gs.sample_coverages(), gs.MSA(), gs.invariants()):
-            if cov.min() < 0.8:
+            if cov.min() < self.gene_cov:
                 continue
 
             msa += snps
@@ -82,7 +83,7 @@ class RAxML_ng(SlurmExecutableTask):
         self.sbatch_args = '--constraint=intel'
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, 'ng', self.output_prefix + ".raxml.support"))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, str(self.gene_cov), 'ng', self.output_prefix + ".raxml.support"))
 
     def work_script(self):
         with self.input()[1].open('r') as f:
@@ -104,11 +105,21 @@ class RAxML_ng(SlurmExecutableTask):
                             --threads {n_cpu}
 
                mv {output_dir}_temp/* {output_dir}
+               rmdir {output_dir}_temp
                '''.format(output_dir=os.path.split(self.output().path)[0],
                           n_cpu=self.n_cpu,
                           input=self.input()[0].path,
                           prefix=self.output_prefix,
                           asc=asc)
+
+
+@inherits(RAxML_ng)
+class CovWrapper(luigi.WrapperTask):
+    gene_cov = None
+
+    def requires(self):
+        for c in [0.5, 0.6, 0.7, 0.8, 0.9]:
+            yield self.clone(RAxML_ng, gene_cov=c)
 
 
 if __name__ == '__main__':
@@ -121,7 +132,7 @@ if __name__ == '__main__':
 
     name = os.path.split(sys.argv[1])[1].split('.', 1)[0]
 
-    luigi.run(['RAxML_ng', '--output-prefix', name,
+    luigi.run(['CovWrapper', '--output-prefix', name,
                            '--lib-list', json.dumps(lib_list),
                            '--star-genome', os.path.join(utils.reference_dir, 'genome'),
                            '--gff', os.path.join(utils.reference_dir, 'PST_genes_final.gff3'),

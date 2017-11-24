@@ -245,11 +245,11 @@ class PrepStructureInput(SlurmTask, CheckTargetNonEmpty):
             fout.write(extraparams)
 
 
-
 @requires(PrepStructureInput)
 class STRUCTURE(SlurmExecutableTask, CheckTargetNonEmpty):
 
     K = luigi.IntParameter()
+    rep = luigi.IntParameter()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -259,7 +259,7 @@ class STRUCTURE(SlurmExecutableTask, CheckTargetNonEmpty):
         self.partition = "nbi-long"
 
     def output(self):
-        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, "K" +str(self.K), 'output'))
+        return LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, "K" + str(self.K), str(self.rep), 'output'))
 
     def work_script(self):
         return '''#!/bin/bash
@@ -267,7 +267,7 @@ class STRUCTURE(SlurmExecutableTask, CheckTargetNonEmpty):
                cd {output_dir}
                set -euo pipefail
 
-               structure -K {K} -m {mainparams} -e {extraparams} -i {data} -o {output}
+               structure -K {K} -m {mainparams} -e {extraparams} -i {data} -o {output} > {output}.log
 
                mv {output}_f {output}
                '''.format(output_dir=os.path.dirname(self.output().path),
@@ -277,13 +277,16 @@ class STRUCTURE(SlurmExecutableTask, CheckTargetNonEmpty):
                           extraparams=self.input()['extraparams'].path,
                           output=self.output().path)
 
+
 @inherits(STRUCTURE)
 class RunK(luigi.WrapperTask):
     K_list = luigi.ListParameter(default=[2,3,4,5,6,7,8,9,10])
-    K = None
+    K, rep = None, None
+
     def requires(self):
         for k in self.K_list:
-            yield self.clone(STRUCTURE, K=k)
+            for i in range(10):
+                yield self.clone(STRUCTURE, K=k, rep=i)
 
 
 # -----------------------------------------------------------------------------------

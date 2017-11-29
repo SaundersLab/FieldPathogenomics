@@ -79,7 +79,7 @@ class RAxML_ng(SlurmExecutableTask):
         # Set the SLURM request params for this task
         self.mem = 1000
         self.n_cpu = 8
-        self.partition = "nbi-medium,RG-Diane-Saunders"
+        self.partition = "nbi-long,RG-Diane-Saunders"
         self.sbatch_args = '--constraint=intel'
 
     def output(self):

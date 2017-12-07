@@ -202,7 +202,7 @@ class PrepStructureInput(SlurmTask, CheckTargetNonEmpty):
     def output(self):
         return {"data": LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, self.output_prefix + ".str")),
                 "mainparams": LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, "mainparams")),
-               "extraparams": LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, "extraparams"))}
+                "extraparams": LocalTarget(os.path.join(self.base_dir, VERSION, PIPELINE, self.output_prefix, "extraparams"))}
 
     def work(self):
 
@@ -238,8 +238,9 @@ class PrepStructureInput(SlurmTask, CheckTargetNonEmpty):
         hap_df.to_csv(af.tmp_path, sep='\t', index=True, index_label='')
         af.move_to_final_destination()
 
+        print("STRUCTURE input shape: " + str(hap_matrix.shape))
         with self.output()['mainparams'].open('w') as fout:
-            fout.write(mainparams.format(burnin=5000, numreps=50000, infile=self.output()['data'].path,
+            fout.write(mainparams.format(burnin=100000, numreps=100000, infile=self.output()['data'].path,
                                          numinds=len(samples), numloci=hap_matrix.shape[0]))
         with self.output()['extraparams'].open('w') as fout:
             fout.write(extraparams)
@@ -267,7 +268,7 @@ class STRUCTURE(SlurmExecutableTask, CheckTargetNonEmpty):
                cd {output_dir}
                set -euo pipefail
 
-               structure -K {K} -m {mainparams} -e {extraparams} -i {data} -o {output} > {output}.log
+               structure -K {K} -m {mainparams} -e {extraparams} -i {data} -o {output} | sed 's/  Rep#/ Rep#/g' >  {output}.log
 
                mv {output}_f {output}
                '''.format(output_dir=os.path.dirname(self.output().path),

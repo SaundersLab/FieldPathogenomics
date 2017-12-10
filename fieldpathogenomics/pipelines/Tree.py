@@ -121,6 +121,8 @@ class CovWrapper(luigi.WrapperTask):
         for c in [0.5, 0.6, 0.7, 0.8, 0.9]:
             yield self.clone(RAxML_ng, gene_cov=c)
 
+    def output(self):
+        return list(self.input())
 
 if __name__ == '__main__':
     multiprocessing.set_start_method('forkserver')

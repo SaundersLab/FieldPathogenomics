@@ -20,7 +20,7 @@ PIPELINE = os.path.basename(__file__).split('.')[0]
 VERSION = fieldpathogenomics.__version__.rsplit('.', 1)[0]
 
 
-@inherits(HD5s, CovWrapper)
+@requires(hd5s=HD5s, trees=CovWrapper)
 class DAPC(NotebookTask):
 
     def __init__(self, *args, **kwargs):
@@ -29,11 +29,13 @@ class DAPC(NotebookTask):
         self.n_cpu = 1
         self.partition = "nbi-medium"
         self.notebook = os.path.join(utils.notebooks, 'DAPC', 'DAPC.ipynb')
-        self.vars_dict = {"SNP_HD5": self.input()[0]['snps'].path,
-                          "TREE_NWK": self.input()[1][0].path,
+        self.vars_dict = {"SNP_HD5": self.input()['hd5s']['snps'].path,
+                          "TREE_NWK": self.input()['trees'][0].path,
                           "MIN_COV": 0.5,
                           "CLUSTER_MIN": 2,
-                          "CLUSTER_MAX": 10}
+                          "N_CLUST": 4,
+                          "CLUSTER_MAX": 10,
+                          "MAX_LINKAGE": 0.95}
         logger.info(str(self.vars_dict))
 
     def output(self):

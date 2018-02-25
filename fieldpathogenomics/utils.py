@@ -11,6 +11,7 @@ import numpy as np
 import Bio
 import Bio.SeqIO
 import Bio.AlignIO
+import itertools
 from collections import Counter
 
 ###############################################################################
@@ -67,6 +68,18 @@ iupac_het = {'AG': 'R', 'GA': 'R', 'AT': 'W', 'TA': 'W',
              'GC': 'S', 'CG': 'S', 'AC': 'M', 'CA': 'M'}
 
 
+def memoized(f):
+    cache = {}
+    def ret(*args):
+        if args not in cache:
+            cache[args] = f(*args)
+        else:
+            cache[args], r = itertools.tee(cache[args])
+        return r
+
+    return ret
+
+
 class GeneSet():
     def __init__(self, genes, genotypes, variants, samples, index):
 
@@ -89,6 +102,16 @@ class GeneSet():
         # downstream
         self.genes = genes[gene_idxs]
 
+    def filter(self, filter):
+        return GeneSet(self.genes[list(filter)], self._genotypes, self._variants, self.samples, self.index)
+
+    def nucleotide_diversity(self, pop_samples=None):
+        subpop = [self.samples.index(x) for x in pop_samples] if pop_samples else None
+
+        for i, (gt, l) in enumerate(zip(self.genotypes(), self.lengths)):
+            mpd = allel.mean_pairwise_difference(gt.count_alleles(subpop=subpop)).sum()
+            yield mpd / l
+
     def genotypes(self):
         return (self._genotypes[m] for m in self.masks)
 
@@ -98,6 +121,13 @@ class GeneSet():
     def site_coverages(self):
         return (g.is_called().sum(axis=1) / len(self.samples)for g in self.genotypes())
 
+    @memoized
+    def allele_counts(self, subpop=None):
+        if subpop and isinstance(subpop[0], str):
+            subpop = [self.samples.index(x) for x in subpop]
+        return (gt.count_alleles(subpop=subpop) for gt in self.genotypes())
+
+    @memoized
     def sample_coverages(self):
         return (g.is_called().sum(axis=0) / g.shape[0] for g in self.genotypes())
 

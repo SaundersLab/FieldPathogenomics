@@ -60,16 +60,32 @@ class VCFtoHDF5(SlurmTask):
     def work(self):
         import allel
         import sys
+        import numpy as np
         from luigi.file import atomic_file
 
         af = atomic_file(self.output().path)
 
+        # Get the fields that are string type
+        *_, it = allel.vcf_read.iter_vcf_chunks(self.input().path, buffer_size=2**15, chunk_length=1, fields='*')
+        str_types = [k for k, v in next(it)[0].items() if v.dtype == np.dtype('O')]
+
+        # Iter through file to find the length of the longest string
+        *_, it = allel.vcf_read.iter_vcf_chunks(self.input().path, fields='*')
+        maxlens = {k: 0 for k in str_types}
+        for c in it:
+            for k in str_types:
+                new = np.vectorize(len)(c[0][k]).max()
+                maxlens[k] = new if new > maxlens[k] else maxlens[k]
+
+        # Extract into HDF5 with fixed size strings, v. important for file size
         allel.vcf_to_hdf5(self.input().path,
                           af.tmp_path,
                           numbers={'AD': 6},
                           fields='*',
                           fills={'AC': 0, 'AF': 0, 'DP': 0,
                                  'calldata/AC': 0, 'calldata/AF': 0, 'calldata/DP': 0},
+                          vlen=False,
+                          types={k: 'S' + str(v) for k, v in maxlens.items()},
                           overwrite=True,
                           log=sys.stdout)
 

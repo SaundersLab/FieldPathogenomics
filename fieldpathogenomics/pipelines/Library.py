@@ -25,8 +25,6 @@ VERSION = fieldpathogenomics.__version__.rsplit('.', 1)[0]
 
 '''
 
-TODO: Migrate making the STAR reference to luigi and correctly set the genome column in AlginmentStats
-
 Guidelines for harmonious living:
 --------------------------------
 1. Tasks acting on fastq files should output() a list like [_R1.fastq, _R2.fastq]
@@ -44,8 +42,8 @@ class FetchFastqGZ(CheckTargetNonEmpty, SlurmExecutableTask):
      :param str library: library name  '''
 
     library = luigi.Parameter()
-    base_dir = luigi.Parameter(significant=False)
-    scratch_dir = luigi.Parameter(significant=False)
+    base_dir = luigi.Parameter()
+    scratch_dir = luigi.Parameter()
     read_dir = luigi.Parameter(default="/tgac/data/reads/*DianeSaunders*", significant=False)
 
     def __init__(self, *args, **kwargs):
@@ -162,10 +160,43 @@ class FastxQC(SlurmExecutableTask):
                    nt_dist_R2=self.output()['nt_dist_R2'].path)
 
 
-@requires(Trimmomatic)
+class IndexGenome(CheckTargetNonEmpty, SlurmExecutableTask):
+    reference = luigi.Parameter()
+    gff = luigi.Parameter()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the SLURM request params for this task
+        self.mem = 16000
+        self.n_cpu = 2
+        self.partition = "nbi-short"
+
+    def output(self):
+        return LocalTarget(self.reference.rsplit('.', 1)[0])
+
+    def work_script(self):
+        return '''#!/bin/bash
+                  source star-2.5.0a
+                  mkdir -p {output}_temp
+                  set -euo pipefail
+
+                  STAR --runThreadN {n_cpu} \
+                        --runMode genomeGenerate \
+                        --genomeDir {output}_temp \
+                        --genomeFastaFiles {reference} \
+                        --sjdbGTFfile {gff} \
+                        --sjdbOverhang 100
+
+                  mv {output}_temp {output}
+                '''.format(n_cpu=self.n_cpu,
+                           reference=self.reference,
+                           gff=self.gff,
+                           output=self.output().path)
+
+
+@requires(reads=Trimmomatic, genome=IndexGenome)
 class Star(CheckTargetNonEmpty, SlurmExecutableTask):
     '''Runs STAR to align to the reference :param str star_genome:'''
-    star_genome = luigi.Parameter()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -201,10 +232,10 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
                   '''.format(star_bam=self.output()['star_bam'].path,
                              star_log=self.output()['star_log'].path,
                              scratch_dir=os.path.join(self.scratch_dir, VERSION, PIPELINE, self.library),
-                             star_genome=self.star_genome,
+                             star_genome=self.input()['genome'].path,
                              n_cpu=self.n_cpu,
-                             R1=self.input()[0].path,
-                             R2=self.input()[1].path,)
+                             R1=self.input()['reads'][0].path,
+                             R2=self.input()['reads'][1].path,)
 
 
 @requires(Trimmomatic)
@@ -280,7 +311,7 @@ class AlignmentStats(sqla.CopyToTable):
         self._update_id = hashlib.sha1(self.input()['star_log'].path.encode()).hexdigest()
 
     def rows(self):
-        genome = os.path.split(self.star_genome)[1]
+        genome = os.path.split(self.clone_parent().input()['genome'].path)[1]
         star_log = utils.parseStarLog(self.input()['star_log'].path, self.library)
         path = self.input()['star_log'].path
 
@@ -652,6 +683,4 @@ if __name__ == '__main__':
         lib_list = [line.rstrip() for line in libs_file]
 
     luigi.run(['LibraryBatchWrapper',
-               '--lib-list', json.dumps(lib_list),
-               '--star-genome', os.path.join(utils.reference_dir, 'genome'),
-               '--reference', os.path.join(utils.reference_dir, 'PST130_contigs.fasta')] + sys.argv[2:])
+               '--lib-list', json.dumps(lib_list)] + sys.argv[2:])

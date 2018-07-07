@@ -176,7 +176,7 @@ class IndexGenome(CheckTargetNonEmpty, SlurmExecutableTask):
 
     def work_script(self):
         return '''#!/bin/bash
-                  source star-2.5.0a
+                  source star-2.6.0a;
                   mkdir -p {output}_temp
                   set -euo pipefail
 
@@ -213,7 +213,7 @@ class Star(CheckTargetNonEmpty, SlurmExecutableTask):
 
     def work_script(self):
         return '''#!/bin/bash
-                  source star-2.5.0a
+                  source star-2.6.0a
                   set -euo pipefail
 
                   mkdir -p {scratch_dir}/star_temp

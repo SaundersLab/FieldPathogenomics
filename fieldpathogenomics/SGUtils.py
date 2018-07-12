@@ -27,7 +27,7 @@ class ScatterVCF(SlurmTask):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def run(self):
         # Avoid Scatter-Work-Gather-Scatter antipattern by doing a last minute check to see if
@@ -137,7 +137,7 @@ class GatherVCF(SlurmExecutableTask, CheckTargetNonEmpty):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def work_script(self):
         return '''#!/bin/bash
@@ -163,7 +163,7 @@ class GatherHD5s(SlurmTask):
         # Set the SLURM request params for this task
         self.mem = 8000
         self.n_cpu = 1
-        self.partition = "tgac-medium"
+        self.partition = "nbi-medium"
 
     def work(self):
         import dask.array as da
